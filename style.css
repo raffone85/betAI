@@ -10,7 +10,7 @@ body {
 }
 
 .app {
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 20px 14px 40px;
 }
@@ -133,8 +133,13 @@ body {
   cursor: pointer;
 }
 
+.green-file {
+  background: linear-gradient(135deg, #157347, #1ea95b);
+}
+
 input[type="file"] {
   display: block;
+  width: 100%;
   margin-bottom: 12px;
   color: #dbe7ff;
 }
@@ -149,6 +154,10 @@ input[type="file"] {
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.green-btn {
+  background: linear-gradient(135deg, #157347, #1ea95b);
 }
 
 .btn:hover {
@@ -166,16 +175,11 @@ input[type="file"] {
 }
 
 .results-list,
-.results-box,
-.placeholder-box {
+.results-box {
   background: #0d1528;
   border: 1px solid #223152;
   border-radius: 16px;
   padding: 14px;
-}
-
-.placeholder-box {
-  color: #93a5c8;
 }
 
 .empty-state {
@@ -216,6 +220,13 @@ input[type="file"] {
   font-weight: 700;
 }
 
+.result-right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .result-badge {
   padding: 8px 12px;
   border-radius: 999px;
@@ -228,6 +239,21 @@ input[type="file"] {
   color: #8bc3ff;
 }
 
+.result-badge.gg {
+  background: #173a21;
+  color: #8ff0ae;
+}
+
+.result-badge.o25 {
+  background: #3c2b09;
+  color: #ffd978;
+}
+
+.result-badge.combo {
+  background: #35216b;
+  color: #d2c8ff;
+}
+
 .result-badge.strong {
   background: #173a21;
   color: #8ff0ae;
@@ -238,11 +264,13 @@ input[type="file"] {
   color: #ffd978;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .main-grid {
     grid-template-columns: 1fr;
   }
+}
 
+@media (max-width: 768px) {
   .hero h1 {
     font-size: 24px;
   }
@@ -250,5 +278,9 @@ input[type="file"] {
   .result-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .result-right {
+    justify-content: flex-start;
   }
 }
