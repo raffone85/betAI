@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>betAI</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div class="hero-badge">betAI</div>
+      <h1>Analisi mercati calcio</h1>
+      <p>
+        Web app modulare per risultati betting con visualizzazione pulita:
+        solo partite ed esiti finali.
+      </p>
+    </header>
+
+    <main class="main-grid">
+      <section class="card">
+        <div class="card-top">
+          <span class="pill blue">Over 0.5 PT</span>
+          <span class="pill dark">Modulo attivo</span>
+        </div>
+        <h2>Mercato 1</h2>
+        <p class="muted">
+          Modulo dedicato alla ricerca Over 0.5 Primo Tempo.
+        </p>
+        <button class="btn" id="btn-o05">Apri modulo</button>
+      </section>
+
+      <section class="card">
+        <div class="card-top">
+          <span class="pill green">GG / Over 2.5</span>
+          <span class="pill dark">Modulo attivo</span>
+        </div>
+        <h2>Mercato 2</h2>
+        <p class="muted">
+          Modulo dedicato alla ricerca GG e Over 2.5.
+        </p>
+        <button class="btn" id="btn-gg25">Apri modulo</button>
+      </section>
+
+      <section class="card full">
+        <div class="card-top">
+          <span class="pill violet">Risultato finale</span>
+          <span class="pill dark">0 esiti</span>
+        </div>
+        <h2>Riepilogo generale</h2>
+        <p class="muted">
+          Qui compariranno i risultati finali di tutti i moduli.
+        </p>
+
+        <div class="results-box" id="results-box">
+          <div class="empty-state">
+            Nessun risultato disponibile.
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
