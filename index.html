@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>betAI</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -21,35 +22,65 @@
       <section class="card">
         <div class="card-top">
           <span class="pill blue">Over 0.5 PT</span>
-          <span class="pill dark">Modulo attivo</span>
+          <span class="pill dark" id="o05-count">0 esiti</span>
         </div>
-        <h2>Mercato 1</h2>
+
+        <h2>Modulo reale</h2>
         <p class="muted">
-          Modulo dedicato alla ricerca Over 0.5 Primo Tempo.
+          Carica il file Excel del mercato Over 0.5 Primo Tempo.
         </p>
-        <button class="btn" id="btn-o05">Apri modulo</button>
+
+        <div class="upload-box">
+          <label class="file-label" for="file-o05">Carica file Excel</label>
+          <input type="file" id="file-o05" accept=".xlsx,.xls,.csv" />
+          <button class="btn" id="analyze-o05">Analizza modulo</button>
+          <div class="status" id="o05-status">Nessun file caricato.</div>
+        </div>
+
+        <div class="result-group">
+          <h3>Modalità 1</h3>
+          <div id="o05-premium" class="results-list">
+            <div class="empty-state">Nessun esito disponibile.</div>
+          </div>
+        </div>
+
+        <div class="result-group">
+          <h3>Lista A</h3>
+          <div id="o05-lista-a" class="results-list">
+            <div class="empty-state">Nessun esito disponibile.</div>
+          </div>
+        </div>
+
+        <div class="result-group">
+          <h3>Lista B</h3>
+          <div id="o05-lista-b" class="results-list">
+            <div class="empty-state">Nessun esito disponibile.</div>
+          </div>
+        </div>
       </section>
 
       <section class="card">
         <div class="card-top">
           <span class="pill green">GG / Over 2.5</span>
-          <span class="pill dark">Modulo attivo</span>
+          <span class="pill dark">Prossimo step</span>
         </div>
-        <h2>Mercato 2</h2>
+        <h2>Modulo 2</h2>
         <p class="muted">
-          Modulo dedicato alla ricerca GG e Over 2.5.
+          Questo blocco verrà collegato subito dopo al file GG / Over 2.5.
         </p>
-        <button class="btn" id="btn-gg25">Apri modulo</button>
+        <div class="placeholder-box">
+          Modulo in preparazione.
+        </div>
       </section>
 
       <section class="card full">
         <div class="card-top">
           <span class="pill violet">Risultato finale</span>
-          <span class="pill dark">0 esiti</span>
+          <span class="pill dark" id="final-count">0 esiti</span>
         </div>
         <h2>Riepilogo generale</h2>
         <p class="muted">
-          Qui compariranno i risultati finali di tutti i moduli.
+          Qui compaiono i risultati finali del modulo attivo.
         </p>
 
         <div class="results-box" id="results-box">
