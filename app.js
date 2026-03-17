@@ -132,63 +132,79 @@ exportPdfBtn.addEventListener("click", () => {
     return;
   }
 
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    alert("Libreria PDF non caricata.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  });
+
   const now = new Date();
   const dateStr = now.toLocaleDateString("it-IT");
   const timeStr = now.toLocaleTimeString("it-IT");
 
-  const html = `
-    <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-      <h1 style="text-align: center; color: #1b2b52; margin-bottom: 5px;">betAI</h1>
-      <p style="text-align: center; color: #666; margin-top: 0;">Analisi mercati calcio</p>
-      <hr style="border: none; border-top: 2px solid #1b2b52; margin: 20px 0;">
-      
-      <p style="text-align: right; color: #999; font-size: 12px;">
-        Generato: ${dateStr} alle ${timeStr}
-      </p>
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
-      <h2 style="color: #1b2b52; margin-top: 30px; margin-bottom: 15px;">Risultati analisi</h2>
-      <p style="color: #666; margin-bottom: 20px;">Totale esiti: <strong>${merged.length}</strong></p>
+  let y = 16;
 
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-        <thead>
-          <tr style="background: #1b2b52; color: white;">
-            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Ora</th>
-            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Partita</th>
-            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Mercato</th>
-            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Qualità</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${merged.map(item => `
-            <tr style="background: ${item.qualityClass === "strong" ? "#f0f8ff" : "#f9f9f9"}; border: 1px solid #ddd;">
-              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${escapeHtml(item.ora || "-")}</td>
-              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${escapeHtml(item.evento || "-")}</td>
-              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px; font-weight: bold;">${escapeHtml(item.market)}</td>
-              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px; font-weight: bold; color: ${item.qualityClass === "strong" ? "#157347" : "#d4a000"};">${item.qualityClass === "strong" ? "Forte" : "Media"}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("betAI", pageWidth / 2, y, { align: "center" });
 
-      <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-      <p style="text-align: center; color: #999; font-size: 11px; margin-top: 20px;">
-        betAI - Analisi statistica per scommesse calcistiche
-      </p>
-    </div>
-  `;
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(11);
+  doc.text("Analisi mercati calcio", pageWidth / 2, y, { align: "center" });
 
-  const element = document.createElement("div");
-  element.innerHTML = html;
+  y += 8;
+  doc.setLineWidth(0.5);
+  doc.line(12, y, pageWidth - 12, y);
 
-  const opt = {
-    margin: 10,
-    filename: `betAI-risultati-${dateStr.replace(/\//g, "-")}.pdf`,
-    image: { type: "jpeg", quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { orientation: "portrait", unit: "mm", format: "a4" }
-  };
+  y += 8;
+  doc.setFontSize(10);
+  doc.text(`Generato: ${dateStr} alle ${timeStr}`, 12, y);
 
-  html2pdf().set(opt).from(element).save();
+  y += 8;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text(`Totale esiti: ${merged.length}`, 12, y);
+
+  y += 10;
+
+  merged.forEach((item, index) => {
+    if (y > pageHeight - 18) {
+      doc.addPage();
+      y = 16;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`${index + 1}. ${safePdfText(item.evento || "-")}`, 12, y);
+
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`Ora: ${safePdfText(item.ora || "-")}`, 14, y);
+
+    y += 5;
+    doc.text(`Mercato: ${safePdfText(item.market || "-")}`, 14, y);
+
+    y += 5;
+    doc.text(`Qualita: ${safePdfText(item.quality || "Forte")}`, 14, y);
+
+    y += 6;
+    doc.setDrawColor(220, 220, 220);
+    doc.line(12, y, pageWidth - 12, y);
+    y += 6;
+  });
+
+  doc.save(`betAI-risultati-${dateStr.replace(/\//g, "-")}.pdf`);
 });
 
 function updateFinalSummary() {
@@ -508,6 +524,13 @@ function badgeClassForMarket(market) {
   if (market === "GG") return "gg";
   if (market === "Over 2.5") return "o25";
   return "combo";
+}
+
+function safePdfText(value) {
+  return String(value || "")
+    .replace(/[^\x20-\x7EÀ-ÿ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function escapeHtml(value) {
