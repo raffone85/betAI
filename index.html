@@ -2,11 +2,10 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>betAI</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -32,7 +31,7 @@
         <div class="upload-box">
           <label class="file-label" for="file-o05">Carica file Excel</label>
           <input type="file" id="file-o05" accept=".xlsx,.xls,.csv" />
-          <button class="btn" id="analyze-o05">Analizza modulo</button>
+          <button type="button" class="btn" id="analyze-o05">Analizza modulo</button>
           <div class="status" id="o05-status">Nessun file caricato.</div>
         </div>
 
@@ -70,7 +69,7 @@
         <div class="upload-box">
           <label class="file-label green-file" for="file-gg25">Carica file Excel</label>
           <input type="file" id="file-gg25" accept=".xlsx,.xls,.csv" />
-          <button class="btn green-btn" id="analyze-gg25">Analizza modulo</button>
+          <button type="button" class="btn green-btn" id="analyze-gg25">Analizza modulo</button>
           <div class="status" id="gg25-status">Nessun file caricato.</div>
         </div>
 
@@ -118,7 +117,7 @@
         <h2>Riepilogo generale</h2>
         <p class="muted">Qui compaiono i risultati finali di tutti i moduli analizzati.</p>
 
-        <button class="btn violet-btn" id="export-pdf">Scarica PDF</button>
+        <button type="button" class="btn violet-btn" id="export-pdf">Scarica PDF</button>
 
         <div class="results-box" id="results-box">
           <div class="empty-state">Nessun risultato disponibile.</div>
