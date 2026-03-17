@@ -30,21 +30,27 @@ const appState = {
   gg25: []
 };
 
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 fileInputO05.addEventListener("change", (e) => {
-  selectedFileO05 = e.target.files[0] || null;
+  selectedFileO05 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
   statusBoxO05.textContent = selectedFileO05
     ? `File caricato: ${selectedFileO05.name}`
     : "Nessun file caricato.";
 });
 
 fileInputGG25.addEventListener("change", (e) => {
-  selectedFileGG25 = e.target.files[0] || null;
+  selectedFileGG25 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
   statusBoxGG25.textContent = selectedFileGG25
     ? `File caricato: ${selectedFileGG25.name}`
     : "Nessun file caricato.";
 });
 
-analyzeBtnO05.addEventListener("click", async () => {
+bindPress(analyzeBtnO05, runAnalyzeO05);
+bindPress(analyzeBtnGG25, runAnalyzeGG25);
+bindPress(exportPdfBtn, handlePdfExport);
+
+async function runAnalyzeO05() {
   if (!selectedFileO05) {
     statusBoxO05.textContent = "Carica prima un file Excel.";
     return;
@@ -55,7 +61,9 @@ analyzeBtnO05.addEventListener("click", async () => {
     return;
   }
 
+  setButtonLoading(analyzeBtnO05, true, "Analisi in corso...");
   statusBoxO05.textContent = "Analisi in corso...";
+  await pause(60);
 
   try {
     const rows = await readExcelRows(selectedFileO05);
@@ -79,10 +87,12 @@ analyzeBtnO05.addEventListener("click", async () => {
       `Analisi completata. Righe lette: ${rows.length} | Modalità 1: ${results.premium.length} | Lista A: ${results.listaA.length} | Lista B: ${results.listaB.length}`;
   } catch (error) {
     statusBoxO05.textContent = `Errore analisi: ${error.message}`;
+  } finally {
+    setButtonLoading(analyzeBtnO05, false, "Analizza modulo");
   }
-});
+}
 
-analyzeBtnGG25.addEventListener("click", async () => {
+async function runAnalyzeGG25() {
   if (!selectedFileGG25) {
     statusBoxGG25.textContent = "Carica prima un file Excel.";
     return;
@@ -93,7 +103,9 @@ analyzeBtnGG25.addEventListener("click", async () => {
     return;
   }
 
+  setButtonLoading(analyzeBtnGG25, true, "Analisi in corso...");
   statusBoxGG25.textContent = "Analisi in corso...";
+  await pause(60);
 
   try {
     const rows = await readExcelRows(selectedFileGG25);
@@ -121,10 +133,17 @@ analyzeBtnGG25.addEventListener("click", async () => {
       `Analisi completata. Righe lette: ${rows.length} | GG Forte: ${results.ggStrong.length} | GG Medio: ${results.ggMedium.length} | O2.5 Forte: ${results.o25Strong.length} | O2.5 Medio: ${results.o25Medium.length} | Combo: ${results.combo.length}`;
   } catch (error) {
     statusBoxGG25.textContent = `Errore analisi: ${error.message}`;
+  } finally {
+    setButtonLoading(analyzeBtnGG25, false, "Analizza modulo");
   }
-});
+}
 
-exportPdfBtn.addEventListener("click", () => {
+function handlePdfExport() {
+  if (isIOS) {
+    alert("Su iPhone lasciamo il PDF momentaneamente disattivato. Prima sistemiamo al 100% l'analisi Excel mobile.");
+    return;
+  }
+
   const merged = [...appState.over05, ...appState.gg25];
 
   if (!merged.length) {
@@ -132,80 +151,24 @@ exportPdfBtn.addEventListener("click", () => {
     return;
   }
 
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    alert("Libreria PDF non caricata.");
-    return;
-  }
+  const lines = [
+    "betAI - Risultati analisi",
+    "",
+    ...merged.map((item, index) =>
+      `${index + 1}. ${item.evento} | ${item.ora} | ${item.market} | ${item.quality || "Forte"}`
+    )
+  ];
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4"
-  });
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("it-IT");
-  const timeStr = now.toLocaleTimeString("it-IT");
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-
-  let y = 16;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text("betAI", pageWidth / 2, y, { align: "center" });
-
-  y += 8;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text("Analisi mercati calcio", pageWidth / 2, y, { align: "center" });
-
-  y += 8;
-  doc.setLineWidth(0.5);
-  doc.line(12, y, pageWidth - 12, y);
-
-  y += 8;
-  doc.setFontSize(10);
-  doc.text(`Generato: ${dateStr} alle ${timeStr}`, 12, y);
-
-  y += 8;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(`Totale esiti: ${merged.length}`, 12, y);
-
-  y += 10;
-
-  merged.forEach((item, index) => {
-    if (y > pageHeight - 18) {
-      doc.addPage();
-      y = 16;
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(`${index + 1}. ${safePdfText(item.evento || "-")}`, 12, y);
-
-    y += 5;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Ora: ${safePdfText(item.ora || "-")}`, 14, y);
-
-    y += 5;
-    doc.text(`Mercato: ${safePdfText(item.market || "-")}`, 14, y);
-
-    y += 5;
-    doc.text(`Qualita: ${safePdfText(item.quality || "Forte")}`, 14, y);
-
-    y += 6;
-    doc.setDrawColor(220, 220, 220);
-    doc.line(12, y, pageWidth - 12, y);
-    y += 6;
-  });
-
-  doc.save(`betAI-risultati-${dateStr.replace(/\//g, "-")}.pdf`);
-});
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "betAI-risultati.txt";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 function updateFinalSummary() {
   const merged = [...appState.over05, ...appState.gg25];
@@ -233,7 +196,7 @@ function updateFinalSummary() {
 }
 
 async function readExcelRows(file) {
-  const buffer = await readFileAsArrayBuffer(file);
+  const buffer = await getFileBuffer(file);
   const workbook = XLSX.read(buffer, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
@@ -242,7 +205,7 @@ async function readExcelRows(file) {
 
   let headerIndex = -1;
 
-  for (let i = 0; i < Math.min(rawRows.length, 8); i++) {
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
     const row = rawRows[i].map(v => String(v).trim());
     if (row.includes("ORA") && row.includes("EVENTO")) {
       headerIndex = i;
@@ -267,6 +230,13 @@ async function readExcelRows(file) {
   }
 
   return data;
+}
+
+async function getFileBuffer(file) {
+  if (file && typeof file.arrayBuffer === "function") {
+    return await file.arrayBuffer();
+  }
+  return await readFileAsArrayBuffer(file);
 }
 
 function readFileAsArrayBuffer(file) {
@@ -332,7 +302,7 @@ function analyzeOver05(rows) {
     if (u5ctSum >= 8) score += 1.5;
     else if (u5ctSum >= 6) score += 1;
 
-    if (u5ct[0] >= 3 && u5ct[1] >= 3) score += 0.5;
+    if (isFinite(u5ct[0]) && isFinite(u5ct[1]) && u5ct[0] >= 3 && u5ct[1] >= 3) score += 0.5;
     if (u5ct[0] === 0 || u5ct[1] === 0) score -= 0.5;
 
     const item = {
@@ -466,6 +436,49 @@ function renderList(container, items, badgeText, showQuality, marketClass) {
   }).join("");
 }
 
+function bindPress(element, handler) {
+  let lastTouchTime = 0;
+  let busy = false;
+
+  const run = async (event, fromTouch) => {
+    if (!element || busy) return;
+
+    if (fromTouch) {
+      lastTouchTime = Date.now();
+    } else {
+      if (Date.now() - lastTouchTime < 700) return;
+    }
+
+    busy = true;
+
+    try {
+      await handler(event);
+    } catch (error) {
+      console.error(error);
+      alert(`Errore: ${error.message}`);
+    } finally {
+      setTimeout(() => {
+        busy = false;
+      }, 250);
+    }
+  };
+
+  element.addEventListener("touchend", async (event) => {
+    event.preventDefault();
+    await run(event, true);
+  }, { passive: false });
+
+  element.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await run(event, false);
+  });
+}
+
+function setButtonLoading(button, loading, text) {
+  button.disabled = loading;
+  button.textContent = text;
+}
+
 function readValue(obj, keys) {
   for (const key of keys) {
     if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
@@ -526,11 +539,8 @@ function badgeClassForMarket(market) {
   return "combo";
 }
 
-function safePdfText(value) {
-  return String(value || "")
-    .replace(/[^\x20-\x7EÀ-ÿ]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function pause(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function escapeHtml(value) {
