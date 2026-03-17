@@ -154,10 +154,15 @@ input[type="file"] {
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  margin-bottom: 12px;
 }
 
 .green-btn {
   background: linear-gradient(135deg, #157347, #1ea95b);
+}
+
+.violet-btn {
+  background: linear-gradient(135deg, #35216b, #5a3fa0);
 }
 
 .btn:hover {
