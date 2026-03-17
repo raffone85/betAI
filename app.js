@@ -36,35 +36,36 @@ analyzeBtn.addEventListener("click", async () => {
     const rows = await readExcelRows(selectedFile);
     const results = analyzeOver05(rows);
 
-    renderList(premiumBox, results.premium, "O0.5 PT", "strong");
-    renderList(listaABox, results.listaA, "O0.5 PT", "strong");
-    renderList(listaBBox, results.listaB, "O0.5 PT", "medium");
+    renderList(premiumBox, results.premium, "O0.5 PT", false);
+    renderList(listaABox, results.listaA, "O0.5 PT", false);
+    renderList(listaBBox, results.listaB, "O0.5 PT", false);
 
     const allResults = [
       ...results.premium.map(item => ({ ...item, rank: 1 })),
       ...results.listaA.map(item => ({ ...item, rank: 2 })),
       ...results.listaB.map(item => ({ ...item, rank: 3 }))
-    ].sort((a, b) => a.rank - b.rank);
+    ].sort((a, b) => a.rank - b.rank || (b.score || 0) - (a.score || 0));
 
-    renderList(finalBox, allResults, "O0.5 PT", "strong", true);
+    renderList(finalBox, allResults, "O0.5 PT", true);
 
     const total = allResults.length;
     o05Count.textContent = `${total} esiti`;
     finalCount.textContent = `${total} esiti`;
 
-    statusBox.textContent = "Analisi completata.";
+    statusBox.textContent =
+      `Analisi completata. Righe lette: ${rows.length} | Modalità 1: ${results.premium.length} | Lista A: ${results.listaA.length} | Lista B: ${results.listaB.length}`;
   } catch (error) {
     statusBox.textContent = `Errore analisi: ${error.message}`;
   }
 });
 
 async function readExcelRows(file) {
-  const buffer = await file.arrayBuffer();
+  const buffer = await readFileAsArrayBuffer(file);
   const workbook = XLSX.read(buffer, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-  if (!rawRows.length) return [];
+  if (!rawRows || !rawRows.length) return [];
 
   let headerIndex = -1;
 
@@ -76,9 +77,7 @@ async function readExcelRows(file) {
     }
   }
 
-  if (headerIndex === -1) {
-    headerIndex = 0;
-  }
+  if (headerIndex === -1) headerIndex = 0;
 
   const headers = rawRows[headerIndex].map(v => String(v).trim());
   const data = [];
@@ -95,6 +94,15 @@ async function readExcelRows(file) {
   }
 
   return data;
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error("Impossibile leggere il file Excel"));
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 function analyzeOver05(rows) {
@@ -172,7 +180,7 @@ function analyzeOver05(rows) {
   return { premium, listaA, listaB };
 }
 
-function renderList(container, items, badgeText, qualityClass, showQuality = false) {
+function renderList(container, items, badgeText, showQuality) {
   if (!items.length) {
     container.innerHTML = `<div class="empty-state">Nessun esito disponibile.</div>`;
     return;
