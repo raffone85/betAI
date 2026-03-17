@@ -20,6 +20,7 @@ const finalBox = document.getElementById("results-box");
 const o05Count = document.getElementById("o05-count");
 const gg25Count = document.getElementById("gg25-count");
 const finalCount = document.getElementById("final-count");
+const exportPdfBtn = document.getElementById("export-pdf");
 
 let selectedFileO05 = null;
 let selectedFileGG25 = null;
@@ -105,11 +106,11 @@ analyzeBtnGG25.addEventListener("click", async () => {
     renderList(comboBox, results.combo, "Combo", false, "combo");
 
     const allResults = [
+      ...results.combo.map(item => ({ ...item, market: "Combo", qualityClass: "strong", rank: 0 })),
       ...results.ggStrong.map(item => ({ ...item, market: "GG", qualityClass: "strong", rank: 1 })),
       ...results.ggMedium.map(item => ({ ...item, market: "GG", qualityClass: "medium", rank: 2 })),
       ...results.o25Strong.map(item => ({ ...item, market: "Over 2.5", qualityClass: "strong", rank: 3 })),
-      ...results.o25Medium.map(item => ({ ...item, market: "Over 2.5", qualityClass: "medium", rank: 4 })),
-      ...results.combo.map(item => ({ ...item, market: "Combo", qualityClass: "strong", rank: 0 }))
+      ...results.o25Medium.map(item => ({ ...item, market: "Over 2.5", qualityClass: "medium", rank: 4 }))
     ].sort((a, b) => a.rank - b.rank || (b.score || 0) - (a.score || 0));
 
     appState.gg25 = allResults;
@@ -121,6 +122,73 @@ analyzeBtnGG25.addEventListener("click", async () => {
   } catch (error) {
     statusBoxGG25.textContent = `Errore analisi: ${error.message}`;
   }
+});
+
+exportPdfBtn.addEventListener("click", () => {
+  const merged = [...appState.over05, ...appState.gg25];
+
+  if (!merged.length) {
+    alert("Nessun risultato disponibile da esportare.");
+    return;
+  }
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("it-IT");
+  const timeStr = now.toLocaleTimeString("it-IT");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
+      <h1 style="text-align: center; color: #1b2b52; margin-bottom: 5px;">betAI</h1>
+      <p style="text-align: center; color: #666; margin-top: 0;">Analisi mercati calcio</p>
+      <hr style="border: none; border-top: 2px solid #1b2b52; margin: 20px 0;">
+      
+      <p style="text-align: right; color: #999; font-size: 12px;">
+        Generato: ${dateStr} alle ${timeStr}
+      </p>
+
+      <h2 style="color: #1b2b52; margin-top: 30px; margin-bottom: 15px;">Risultati analisi</h2>
+      <p style="color: #666; margin-bottom: 20px;">Totale esiti: <strong>${merged.length}</strong></p>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background: #1b2b52; color: white;">
+            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Ora</th>
+            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Partita</th>
+            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Mercato</th>
+            <th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Qualità</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${merged.map(item => `
+            <tr style="background: ${item.qualityClass === "strong" ? "#f0f8ff" : "#f9f9f9"}; border: 1px solid #ddd;">
+              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${escapeHtml(item.ora || "-")}</td>
+              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px;">${escapeHtml(item.evento || "-")}</td>
+              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px; font-weight: bold;">${escapeHtml(item.market)}</td>
+              <td style="padding: 10px; border: 1px solid #ddd; font-size: 13px; font-weight: bold; color: ${item.qualityClass === "strong" ? "#157347" : "#d4a000"};">${item.qualityClass === "strong" ? "Forte" : "Media"}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+
+      <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+      <p style="text-align: center; color: #999; font-size: 11px; margin-top: 20px;">
+        betAI - Analisi statistica per scommesse calcistiche
+      </p>
+    </div>
+  `;
+
+  const element = document.createElement("div");
+  element.innerHTML = html;
+
+  const opt = {
+    margin: 10,
+    filename: `betAI-risultati-${dateStr.replace(/\//g, "-")}.pdf`,
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { orientation: "portrait", unit: "mm", format: "a4" }
+  };
+
+  html2pdf().set(opt).from(element).save();
 });
 
 function updateFinalSummary() {
