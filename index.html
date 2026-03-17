@@ -6,6 +6,7 @@
   <title>betAI</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -116,6 +117,8 @@
         </div>
         <h2>Riepilogo generale</h2>
         <p class="muted">Qui compaiono i risultati finali di tutti i moduli analizzati.</p>
+
+        <button class="btn violet-btn" id="export-pdf">Scarica PDF</button>
 
         <div class="results-box" id="results-box">
           <div class="empty-state">Nessun risultato disponibile.</div>
