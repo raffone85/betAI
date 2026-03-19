@@ -1,319 +1,258 @@
-const fileInputO05 = document.getElementById("file-o05");
-const analyzeBtnO05 = document.getElementById("analyze-o05");
-const statusBoxO05 = document.getElementById("o05-status");
+const fileO05 = document.getElementById("file-o05");
+const btnO05 = document.getElementById("btn-o05");
+const statusO05 = document.getElementById("status-o05");
+const countO05 = document.getElementById("count-o05");
+const boxO05Premium = document.getElementById("box-o05-premium");
+const boxO05A = document.getElementById("box-o05-a");
+const boxO05B = document.getElementById("box-o05-b");
 
-const premiumBox = document.getElementById("o05-premium");
-const listaABox = document.getElementById("o05-lista-a");
-const listaBBox = document.getElementById("o05-lista-b");
+const fileGG25 = document.getElementById("file-gg25");
+const btnGG25 = document.getElementById("btn-gg25");
+const statusGG25 = document.getElementById("status-gg25");
+const countGG25 = document.getElementById("count-gg25");
+const boxGGStrong = document.getElementById("box-gg-strong");
+const boxGGMedium = document.getElementById("box-gg-medium");
+const boxO25Strong = document.getElementById("box-o25-strong");
+const boxO25Medium = document.getElementById("box-o25-medium");
+const boxCombo = document.getElementById("box-combo");
 
-const fileInputGG25 = document.getElementById("file-gg25");
-const analyzeBtnGG25 = document.getElementById("analyze-gg25");
-const statusBoxGG25 = document.getElementById("gg25-status");
+const boxFinal = document.getElementById("box-final");
+const countFinal = document.getElementById("count-final");
+const btnExport = document.getElementById("btn-export");
 
-const ggStrongBox = document.getElementById("gg-strong");
-const ggMediumBox = document.getElementById("gg-medium");
-const o25StrongBox = document.getElementById("o25-strong");
-const o25MediumBox = document.getElementById("o25-medium");
-const comboBox = document.getElementById("gg25-combo");
+let selectedO05 = null;
+let selectedGG25 = null;
 
-const finalBox = document.getElementById("results-box");
-const o05Count = document.getElementById("o05-count");
-const gg25Count = document.getElementById("gg25-count");
-const finalCount = document.getElementById("final-count");
-const exportPdfBtn = document.getElementById("export-pdf");
-
-let selectedFileO05 = null;
-let selectedFileGG25 = null;
-
-const appState = {
+const state = {
   over05: [],
   gg25: []
 };
 
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-fileInputO05.addEventListener("change", (e) => {
-  selectedFileO05 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-  statusBoxO05.textContent = selectedFileO05
-    ? `File caricato: ${selectedFileO05.name}`
+fileO05.addEventListener("change", (e) => {
+  selectedO05 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+  statusO05.textContent = selectedO05
+    ? `File caricato: ${selectedO05.name}`
     : "Nessun file caricato.";
 });
 
-fileInputGG25.addEventListener("change", (e) => {
-  selectedFileGG25 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-  statusBoxGG25.textContent = selectedFileGG25
-    ? `File caricato: ${selectedFileGG25.name}`
+fileGG25.addEventListener("change", (e) => {
+  selectedGG25 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+  statusGG25.textContent = selectedGG25
+    ? `File caricato: ${selectedGG25.name}`
     : "Nessun file caricato.";
 });
 
-bindPress(analyzeBtnO05, runAnalyzeO05);
-bindPress(analyzeBtnGG25, runAnalyzeGG25);
-bindPress(exportPdfBtn, handlePdfExport);
+bindPress(btnO05, analyzeO05);
+bindPress(btnGG25, analyzeGG25);
+bindPress(btnExport, exportTxt);
 
-async function runAnalyzeO05() {
-  if (!selectedFileO05) {
-    statusBoxO05.textContent = "Carica prima un file Excel.";
+async function analyzeO05() {
+  if (!selectedO05) {
+    statusO05.textContent = "Seleziona prima un file Excel.";
     return;
   }
 
   if (typeof XLSX === "undefined") {
-    statusBoxO05.textContent = "Libreria Excel non caricata.";
+    statusO05.textContent = "Libreria XLSX non caricata.";
     return;
   }
 
-  setButtonLoading(analyzeBtnO05, true, "Analisi in corso...");
-  statusBoxO05.textContent = "Analisi in corso...";
-  await pause(60);
+  setLoading(btnO05, true, "Analisi in corso...");
+  statusO05.textContent = "Lettura file in corso...";
 
   try {
-    const rows = await readExcelRows(selectedFileO05);
-    const results = analyzeOver05(rows);
+    const rows = await readExcelRows(selectedO05, ["ORA", "EVENTO"]);
+    const results = buildOver05Results(rows);
 
-    renderList(premiumBox, results.premium, "O0.5 PT", false, "o05");
-    renderList(listaABox, results.listaA, "O0.5 PT", false, "o05");
-    renderList(listaBBox, results.listaB, "O0.5 PT", false, "o05");
+    renderList(boxO05Premium, results.premium, "O0.5 PT", "o05", false);
+    renderList(boxO05A, results.listaA, "O0.5 PT", "o05", false);
+    renderList(boxO05B, results.listaB, "O0.5 PT", "o05", false);
 
-    const allResults = [
-      ...results.premium.map(item => ({ ...item, market: "O0.5 PT", qualityClass: "strong", rank: 1 })),
-      ...results.listaA.map(item => ({ ...item, market: "O0.5 PT", qualityClass: "strong", rank: 2 })),
-      ...results.listaB.map(item => ({ ...item, market: "O0.5 PT", qualityClass: "medium", rank: 3 }))
+    const merged = [
+      ...results.premium.map(x => ({ ...x, market: "O0.5 PT", qualityClass: "strong", rank: 1 })),
+      ...results.listaA.map(x => ({ ...x, market: "O0.5 PT", qualityClass: "strong", rank: 2 })),
+      ...results.listaB.map(x => ({ ...x, market: "O0.5 PT", qualityClass: "medium", rank: 3 }))
     ].sort((a, b) => a.rank - b.rank || (b.score || 0) - (a.score || 0));
 
-    appState.over05 = allResults;
-    o05Count.textContent = `${allResults.length} esiti`;
-    updateFinalSummary();
+    state.over05 = merged;
+    countO05.textContent = `${merged.length} esiti`;
+    updateFinal();
 
-    statusBoxO05.textContent =
+    statusO05.textContent =
       `Analisi completata. Righe lette: ${rows.length} | Modalità 1: ${results.premium.length} | Lista A: ${results.listaA.length} | Lista B: ${results.listaB.length}`;
   } catch (error) {
-    statusBoxO05.textContent = `Errore analisi: ${error.message}`;
+    statusO05.textContent = `Errore: ${error.message}`;
   } finally {
-    setButtonLoading(analyzeBtnO05, false, "Analizza modulo");
+    setLoading(btnO05, false, "Analizza Over 0.5 PT");
   }
 }
 
-async function runAnalyzeGG25() {
-  if (!selectedFileGG25) {
-    statusBoxGG25.textContent = "Carica prima un file Excel.";
+async function analyzeGG25() {
+  if (!selectedGG25) {
+    statusGG25.textContent = "Seleziona prima un file Excel.";
     return;
   }
 
   if (typeof XLSX === "undefined") {
-    statusBoxGG25.textContent = "Libreria Excel non caricata.";
+    statusGG25.textContent = "Libreria XLSX non caricata.";
     return;
   }
 
-  setButtonLoading(analyzeBtnGG25, true, "Analisi in corso...");
-  statusBoxGG25.textContent = "Analisi in corso...";
-  await pause(60);
+  setLoading(btnGG25, true, "Analisi in corso...");
+  statusGG25.textContent = "Lettura file in corso...";
 
   try {
-    const rows = await readExcelRows(selectedFileGG25);
-    const results = analyzeGGOver25(rows);
+    const rows = await readExcelRows(selectedGG25, ["ORA", "EVENTO"]);
+    const results = buildGG25Results(rows);
 
-    renderList(ggStrongBox, results.ggStrong, "GG", false, "gg");
-    renderList(ggMediumBox, results.ggMedium, "GG", false, "gg");
-    renderList(o25StrongBox, results.o25Strong, "Over 2.5", false, "o25");
-    renderList(o25MediumBox, results.o25Medium, "Over 2.5", false, "o25");
-    renderList(comboBox, results.combo, "Combo", false, "combo");
+    renderList(boxGGStrong, results.ggStrong, "GG", "gg", false);
+    renderList(boxGGMedium, results.ggMedium, "GG", "gg", false);
+    renderList(boxO25Strong, results.o25Strong, "Over 2.5", "o25", false);
+    renderList(boxO25Medium, results.o25Medium, "Over 2.5", "o25", false);
+    renderList(boxCombo, results.combo, "Combo", "combo", false);
 
-    const allResults = [
-      ...results.combo.map(item => ({ ...item, market: "Combo", qualityClass: "strong", rank: 0 })),
-      ...results.ggStrong.map(item => ({ ...item, market: "GG", qualityClass: "strong", rank: 1 })),
-      ...results.ggMedium.map(item => ({ ...item, market: "GG", qualityClass: "medium", rank: 2 })),
-      ...results.o25Strong.map(item => ({ ...item, market: "Over 2.5", qualityClass: "strong", rank: 3 })),
-      ...results.o25Medium.map(item => ({ ...item, market: "Over 2.5", qualityClass: "medium", rank: 4 }))
+    const merged = [
+      ...results.combo.map(x => ({ ...x, market: "Combo", qualityClass: "strong", rank: 0 })),
+      ...results.ggStrong.map(x => ({ ...x, market: "GG", qualityClass: "strong", rank: 1 })),
+      ...results.ggMedium.map(x => ({ ...x, market: "GG", qualityClass: "medium", rank: 2 })),
+      ...results.o25Strong.map(x => ({ ...x, market: "Over 2.5", qualityClass: "strong", rank: 3 })),
+      ...results.o25Medium.map(x => ({ ...x, market: "Over 2.5", qualityClass: "medium", rank: 4 }))
     ].sort((a, b) => a.rank - b.rank || (b.score || 0) - (a.score || 0));
 
-    appState.gg25 = allResults;
-    gg25Count.textContent = `${allResults.length} esiti`;
-    updateFinalSummary();
+    state.gg25 = merged;
+    countGG25.textContent = `${merged.length} esiti`;
+    updateFinal();
 
-    statusBoxGG25.textContent =
+    statusGG25.textContent =
       `Analisi completata. Righe lette: ${rows.length} | GG Forte: ${results.ggStrong.length} | GG Medio: ${results.ggMedium.length} | O2.5 Forte: ${results.o25Strong.length} | O2.5 Medio: ${results.o25Medium.length} | Combo: ${results.combo.length}`;
   } catch (error) {
-    statusBoxGG25.textContent = `Errore analisi: ${error.message}`;
+    statusGG25.textContent = `Errore: ${error.message}`;
   } finally {
-    setButtonLoading(analyzeBtnGG25, false, "Analizza modulo");
+    setLoading(btnGG25, false, "Analizza GG / Over 2.5");
   }
 }
 
-function handlePdfExport() {
-  if (isIOS) {
-    alert("Su iPhone lasciamo il PDF momentaneamente disattivato. Prima sistemiamo al 100% l'analisi Excel mobile.");
-    return;
-  }
-
-  const merged = [...appState.over05, ...appState.gg25];
-
-  if (!merged.length) {
-    alert("Nessun risultato disponibile da esportare.");
-    return;
-  }
-
-  const lines = [
-    "betAI - Risultati analisi",
-    "",
-    ...merged.map((item, index) =>
-      `${index + 1}. ${item.evento} | ${item.ora} | ${item.market} | ${item.quality || "Forte"}`
-    )
-  ];
-
-  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "betAI-risultati.txt";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function updateFinalSummary() {
-  const merged = [...appState.over05, ...appState.gg25];
-
-  if (!merged.length) {
-    finalBox.innerHTML = `<div class="empty-state">Nessun risultato disponibile.</div>`;
-    finalCount.textContent = "0 esiti";
-    return;
-  }
-
-  finalCount.textContent = `${merged.length} esiti`;
-
-  finalBox.innerHTML = merged.map(item => `
-    <div class="result-item">
-      <div class="result-left">
-        <div class="result-time">${escapeHtml(item.ora || "-")}</div>
-        <div class="result-match">${escapeHtml(item.evento || "-")}</div>
-      </div>
-      <div class="result-right">
-        <span class="result-badge ${badgeClassForMarket(item.market)}">${escapeHtml(item.market)}</span>
-        <span class="result-badge ${item.qualityClass}">${escapeHtml(item.quality || "Forte")}</span>
-      </div>
-    </div>
-  `).join("");
-}
-
-async function readExcelRows(file) {
+async function readExcelRows(file, requiredHeaders = []) {
   const buffer = await getFileBuffer(file);
   const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
 
-  if (!rawRows || !rawRows.length) return [];
+  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  if (!matrix || !matrix.length) return [];
 
-  let headerIndex = -1;
-
-  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
-    const row = rawRows[i].map(v => String(v).trim());
-    if (row.includes("ORA") && row.includes("EVENTO")) {
-      headerIndex = i;
-      break;
-    }
+  const headerIndex = findHeaderRow(matrix, requiredHeaders);
+  if (headerIndex === -1) {
+    throw new Error("Intestazioni non trovate nel file Excel.");
   }
 
-  if (headerIndex === -1) headerIndex = 0;
+  const headers = matrix[headerIndex].map((v) => normalizeHeader(v));
+  const rows = [];
 
-  const headers = rawRows[headerIndex].map(v => String(v).trim());
-  const data = [];
-
-  for (let i = headerIndex + 1; i < rawRows.length; i++) {
-    const row = rawRows[i];
-    if (!row || row.every(cell => String(cell).trim() === "")) continue;
+  for (let i = headerIndex + 1; i < matrix.length; i++) {
+    const row = matrix[i];
+    if (!row || row.every(cell => cleanText(cell) === "")) continue;
 
     const obj = {};
     headers.forEach((header, index) => {
-      obj[header || `col_${index}`] = row[index];
+      if (!header) return;
+      obj[header] = row[index];
     });
-    data.push(obj);
+
+    rows.push(obj);
   }
 
-  return data;
+  return rows;
+}
+
+function findHeaderRow(matrix, requiredHeaders) {
+  const wanted = requiredHeaders.map(normalizeHeader);
+
+  for (let i = 0; i < Math.min(matrix.length, 12); i++) {
+    const row = matrix[i].map(normalizeHeader);
+    const ok = wanted.every(h => row.includes(h));
+    if (ok) return i;
+  }
+
+  return -1;
 }
 
 async function getFileBuffer(file) {
   if (file && typeof file.arrayBuffer === "function") {
     return await file.arrayBuffer();
   }
-  return await readFileAsArrayBuffer(file);
-}
 
-function readFileAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
+  return await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error("Impossibile leggere il file Excel"));
+    reader.onerror = () => reject(new Error("Impossibile leggere il file"));
     reader.readAsArrayBuffer(file);
   });
 }
 
-function analyzeOver05(rows) {
+function buildOver05Results(rows) {
   const premium = [];
   const listaA = [];
   const listaB = [];
 
   rows.forEach((row) => {
-    const ora = normalizeTime(readValue(row, ["ORA"]));
-    const evento = normalizeEvent(readValue(row, ["EVENTO"]));
+    const ora = normalizeTime(getVal(row, ["ORA"]));
+    const evento = normalizeEvent(getVal(row, ["EVENTO"]));
     if (!evento) return;
 
-    const ind = toNumber(readValue(row, ["IND"]));
-    const delta = toNumber(readValue(row, ["Delta"]));
-    const diff = toNumber(readValue(row, ["Diff"]));
-    const mge = toNumber(readValue(row, ["MGE"]));
-    const cov = toPercent(readValue(row, ["COv0.5%"]));
-    const oov = toPercent(readValue(row, ["OOv0.5%"]));
-    const qrgg = toNumber(readValue(row, ["QrGG"]));
-    const qro25 = toNumber(readValue(row, ["QrO25"]));
-    const qro05 = toNumber(readValue(row, ["QROv0.5pt"]));
-    const u5 = splitPair(readValue(row, ["U5[C|O]"]));
-    const u5ct = splitPair(readValue(row, ["U5CT[C|O]"]));
+    const ind = toNumber(getVal(row, ["IND"]));
+    const delta = toPercentNumber(getVal(row, ["DELTA"]));
+    const diff = toNumber(getVal(row, ["DIFF"]));
+    const mge = toNumber(getVal(row, ["MGE"]));
+    const cov = toPercentNumber(getVal(row, ["COV0.5%"]));
+    const oov = toPercentNumber(getVal(row, ["OOV0.5%"]));
+    const qrgg = toNumber(getVal(row, ["QRGG"]));
+    const qro25 = toNumber(getVal(row, ["QRO25"]));
+    const qro05 = toNumber(getVal(row, ["QROV0.5PT"]));
+
+    const u5 = splitPairFlexible(getVal(row, ["U5[C|O]"]));
+    const u5ct = splitPairFlexible(getVal(row, ["U5CT[C|O]"]));
 
     if (isFinite(ind) && isFinite(delta) && isFinite(diff)) {
-      if (delta < -0.20 && ind < 320 && diff < 0) {
+      if (delta < -20 && ind < 320 && diff < 0) {
         premium.push({
           ora,
           evento,
           quality: "Forte",
-          score: (400 - ind) + (-delta * 100) + (Math.abs(diff) * 10)
+          score: (400 - ind) + Math.abs(delta) + (Math.abs(diff) * 10)
         });
       }
     }
 
     let score = 0;
 
-    if (isFinite(ind)) score += ind < 280 ? 2 : ind < 320 ? 1.5 : ind < 330 ? 1 : 0;
-    if (isFinite(delta)) score += delta <= -0.20 ? 2 : delta < -0.05 ? 1 : delta < 0 ? 0.5 : 0;
+    if (isFinite(ind)) score += ind < 280 ? 2 : ind < 320 ? 1.5 : ind < 360 ? 1 : 0;
+    if (isFinite(delta)) score += delta <= -20 ? 2 : delta <= -10 ? 1.25 : delta < 0 ? 0.5 : 0;
     if (isFinite(diff)) score += diff < 0 ? 1.5 : diff <= 0.2 ? 0.5 : 0;
-    if (isFinite(mge)) score += mge >= 3.2 ? 1.5 : mge >= 2.8 ? 1 : mge >= 2.5 ? 0.5 : 0;
+    if (isFinite(mge)) score += mge >= 3.2 ? 1.5 : mge >= 2.8 ? 1 : mge >= 2.4 ? 0.5 : 0;
 
-    if (isFinite(cov) && cov >= 75) score += 0.75;
-    if (isFinite(oov) && oov >= 75) score += 0.75;
-    if (isFinite(qrgg) && isFinite(qro25) && qrgg <= qro25) score += 0.75;
-    if (isFinite(qro05)) score += qro05 <= 1.30 ? 0.75 : qro05 <= 1.40 ? 0.5 : 0;
+    if (isFinite(cov)) score += cov >= 80 ? 1 : cov >= 72 ? 0.6 : 0;
+    if (isFinite(oov)) score += oov >= 80 ? 1 : oov >= 72 ? 0.6 : 0;
+    if (isFinite(qrgg) && isFinite(qro25) && qrgg <= qro25) score += 0.7;
+    if (isFinite(qro05)) score += qro05 <= 1.25 ? 0.8 : qro05 <= 1.35 ? 0.5 : 0;
 
-    const u5Sum = sumFinite(u5);
-    const u5ctSum = sumFinite(u5ct);
+    const u5sum = sumFinite(u5);
+    const u5ctsum = sumFinite(u5ct);
 
-    if (u5Sum >= 9) score += 1;
-    else if (u5Sum >= 6) score += 0.5;
-
-    if (u5ctSum >= 8) score += 1.5;
-    else if (u5ctSum >= 6) score += 1;
-
-    if (isFinite(u5ct[0]) && isFinite(u5ct[1]) && u5ct[0] >= 3 && u5ct[1] >= 3) score += 0.5;
-    if (u5ct[0] === 0 || u5ct[1] === 0) score -= 0.5;
+    if (u5sum >= 6) score += 0.6;
+    if (u5sum >= 8) score += 0.4;
+    if (u5ctsum >= 4) score += 0.8;
+    if (u5ctsum >= 6) score += 0.6;
 
     const item = {
       ora,
       evento,
-      quality: score >= 7 ? "Forte" : "Media",
+      quality: score >= 6.6 ? "Forte" : "Media",
       score
     };
 
-    if (score >= 7) listaA.push(item);
-    else if (score >= 5.5) listaB.push(item);
+    if (score >= 6.6) listaA.push(item);
+    else if (score >= 5.1) listaB.push(item);
   });
 
   premium.sort((a, b) => b.score - a.score);
@@ -323,7 +262,7 @@ function analyzeOver05(rows) {
   return { premium, listaA, listaB };
 }
 
-function analyzeGGOver25(rows) {
+function buildGG25Results(rows) {
   const ggStrong = [];
   const ggMedium = [];
   const o25Strong = [];
@@ -331,47 +270,47 @@ function analyzeGGOver25(rows) {
   const combo = [];
 
   rows.forEach((row) => {
-    const ora = normalizeTime(readValue(row, ["ORA"]));
-    const evento = normalizeEvent(readValue(row, ["EVENTO"]));
+    const ora = normalizeTime(getVal(row, ["ORA"]));
+    const evento = normalizeEvent(getVal(row, ["EVENTO"]));
     if (!evento) return;
 
-    const igbc = toNumber(readValue(row, ["IGBc"]));
-    const igbo = toNumber(readValue(row, ["IGBo"]));
-    const igbt = toNumber(readValue(row, ["IGBt"]));
-    const mge = toNumber(readValue(row, ["MGE"]));
-    const diff = toNumber(readValue(row, ["Diff"]));
-    const pgg = toNumber(readValue(row, ["PGG"]));
-    const spread = toNumber(readValue(row, ["S1-S2"]));
+    const igbc = toNumber(getVal(row, ["IGBC"]));
+    const igbo = toNumber(getVal(row, ["IGBO"]));
+    const igbt = toNumber(getVal(row, ["IGBT"]));
+    const mge = toNumber(getVal(row, ["MGE"]));
+    const diff = toNumber(getVal(row, ["DIFF"]));
+    const pgg = toNumber(getVal(row, ["PGG"]));
+    const s1s2 = toNumber(getVal(row, ["S1-S2"]));
 
     const ggStrongCheck =
-      isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(spread) &&
-      igbc > 120 && igbo > 100 && pgg > 60 && diff <= 0 && spread < 200;
+      isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(s1s2) &&
+      igbc > 120 && igbo > 100 && pgg > 60 && diff <= 0 && s1s2 < 200;
 
     const ggMediumCheck =
-      isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(spread) &&
-      igbc > 100 && igbo > 80 && pgg > 55 && diff <= 0.5 && spread < 300;
+      isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(s1s2) &&
+      igbc > 100 && igbo > 80 && pgg > 52 && diff <= 0.5 && s1s2 < 300;
 
     const o25StrongCheck =
-      isFinite(igbt) && isFinite(mge) && isFinite(diff) && isFinite(spread) &&
-      igbt >= 300 && mge >= 3.2 && diff <= 0 && spread < 200;
+      isFinite(igbt) && isFinite(mge) && isFinite(diff) && isFinite(s1s2) &&
+      igbt >= 300 && mge >= 2.8 && diff <= 0 && s1s2 < 220;
 
     const o25MediumCheck =
-      isFinite(igbt) && isFinite(mge) && isFinite(diff) && isFinite(spread) &&
-      igbt >= 260 && mge >= 2.8 && diff <= 0.5 && spread < 300;
+      isFinite(igbt) && isFinite(mge) && isFinite(diff) && isFinite(s1s2) &&
+      igbt >= 260 && mge >= 2.5 && diff <= 0.6 && s1s2 < 350;
 
     if (ggStrongCheck) {
       ggStrong.push({
         ora,
         evento,
         quality: "Forte",
-        score: igbc + igbo + pgg - spread
+        score: igbc + igbo + pgg - s1s2
       });
     } else if (ggMediumCheck) {
       ggMedium.push({
         ora,
         evento,
         quality: "Media",
-        score: igbc + igbo + pgg - spread
+        score: igbc + igbo + pgg - s1s2
       });
     }
 
@@ -380,14 +319,14 @@ function analyzeGGOver25(rows) {
         ora,
         evento,
         quality: "Forte",
-        score: igbt + (mge * 10) - spread
+        score: igbt + (mge * 20) - s1s2
       });
     } else if (o25MediumCheck) {
       o25Medium.push({
         ora,
         evento,
         quality: "Media",
-        score: igbt + (mge * 10) - spread
+        score: igbt + (mge * 20) - s1s2
       });
     }
 
@@ -396,7 +335,7 @@ function analyzeGGOver25(rows) {
         ora,
         evento,
         quality: "Forte",
-        score: igbc + igbo + igbt + (mge * 10) + pgg - spread
+        score: igbc + igbo + igbt + (mge * 20) + pgg - s1s2
       });
     }
   });
@@ -410,55 +349,97 @@ function analyzeGGOver25(rows) {
   return { ggStrong, ggMedium, o25Strong, o25Medium, combo };
 }
 
-function renderList(container, items, badgeText, showQuality, marketClass) {
+function updateFinal() {
+  const merged = [...state.over05, ...state.gg25];
+
+  if (!merged.length) {
+    boxFinal.innerHTML = `<div class="empty-state">Nessun risultato disponibile.</div>`;
+    countFinal.textContent = "0 esiti";
+    return;
+  }
+
+  countFinal.textContent = `${merged.length} esiti`;
+
+  boxFinal.innerHTML = merged.map(item => `
+    <div class="result-item">
+      <div class="result-left">
+        <div class="result-time">${escapeHtml(item.ora || "-")}</div>
+        <div class="result-match">${escapeHtml(item.evento || "-")}</div>
+      </div>
+      <div class="result-right">
+        <span class="badge ${badgeClass(item.market)}">${escapeHtml(item.market)}</span>
+        <span class="badge ${item.qualityClass}">${escapeHtml(item.quality || "Forte")}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderList(container, items, label, marketClass, showQuality = false) {
   if (!items.length) {
     container.innerHTML = `<div class="empty-state">Nessun esito disponibile.</div>`;
     return;
   }
 
-  container.innerHTML = items.map(item => {
-    const qualityBadge = showQuality
-      ? `<span class="result-badge ${item.quality === "Forte" ? "strong" : "medium"}">${item.quality}</span>`
-      : "";
-
-    return `
-      <div class="result-item">
-        <div class="result-left">
-          <div class="result-time">${escapeHtml(item.ora || "-")}</div>
-          <div class="result-match">${escapeHtml(item.evento || "-")}</div>
-        </div>
-        <div class="result-right">
-          <span class="result-badge ${marketClass}">${escapeHtml(badgeText)}</span>
-          ${qualityBadge}
-        </div>
+  container.innerHTML = items.map(item => `
+    <div class="result-item">
+      <div class="result-left">
+        <div class="result-time">${escapeHtml(item.ora || "-")}</div>
+        <div class="result-match">${escapeHtml(item.evento || "-")}</div>
       </div>
-    `;
-  }).join("");
+      <div class="result-right">
+        <span class="badge ${marketClass}">${escapeHtml(label)}</span>
+        ${showQuality ? `<span class="badge ${item.quality === "Forte" ? "strong" : "medium"}">${escapeHtml(item.quality)}</span>` : ""}
+      </div>
+    </div>
+  `).join("");
+}
+
+function exportTxt() {
+  const merged = [...state.over05, ...state.gg25];
+
+  if (!merged.length) {
+    alert("Nessun risultato da esportare.");
+    return;
+  }
+
+  const lines = [
+    "betAI - Risultati",
+    "",
+    ...merged.map((item, i) =>
+      `${i + 1}. ${item.ora} | ${item.evento} | ${item.market} | ${item.quality || "Forte"}`
+    )
+  ];
+
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "betai-risultati.txt";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 800);
 }
 
 function bindPress(element, handler) {
-  let lastTouchTime = 0;
-  let busy = false;
+  let touchStamp = 0;
+  let locked = false;
 
   const run = async (event, fromTouch) => {
-    if (!element || busy) return;
+    if (locked) return;
 
     if (fromTouch) {
-      lastTouchTime = Date.now();
-    } else {
-      if (Date.now() - lastTouchTime < 700) return;
+      touchStamp = Date.now();
+    } else if (Date.now() - touchStamp < 700) {
+      return;
     }
 
-    busy = true;
-
+    locked = true;
     try {
       await handler(event);
-    } catch (error) {
-      console.error(error);
-      alert(`Errore: ${error.message}`);
     } finally {
       setTimeout(() => {
-        busy = false;
+        locked = false;
       }, 250);
     }
   };
@@ -474,12 +455,12 @@ function bindPress(element, handler) {
   });
 }
 
-function setButtonLoading(button, loading, text) {
-  button.disabled = loading;
+function setLoading(button, isLoading, text) {
+  button.disabled = isLoading;
   button.textContent = text;
 }
 
-function readValue(obj, keys) {
+function getVal(obj, keys) {
   for (const key of keys) {
     if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
       return obj[key];
@@ -488,68 +469,79 @@ function readValue(obj, keys) {
   return "";
 }
 
+function normalizeHeader(value) {
+  return cleanText(value).toUpperCase();
+}
+
+function cleanText(value) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeTime(value) {
+  const text = cleanText(value);
+  const full = text.match(/\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/);
+  if (full) return full[0];
+  const hm = text.match(/\d{2}:\d{2}/);
+  return hm ? hm[0] : (text || "-");
+}
+
+function normalizeEvent(value) {
+  const text = cleanText(value);
+  const match = text.match(/^(.*? - .*?)(?:\s{2,}.*)?$/);
+  return match ? cleanText(match[1]) : text;
+}
+
 function toNumber(value) {
   if (value === null || value === undefined || value === "") return NaN;
   const match = String(value).replace(",", ".").match(/-?\d+(\.\d+)?/);
   return match ? parseFloat(match[0]) : NaN;
 }
 
-function toPercent(value) {
-  const n = toNumber(value);
-  if (!isFinite(n)) return NaN;
+function toPercentNumber(value) {
+  if (value === null || value === undefined || value === "") return NaN;
+  const text = String(value).trim().replace(",", ".");
+  if (text.includes("%")) {
+    const n = parseFloat(text.replace("%", ""));
+    return Number.isFinite(n) ? n : NaN;
+  }
+  const n = parseFloat(text);
+  if (!Number.isFinite(n)) return NaN;
   return n <= 1 ? n * 100 : n;
 }
 
-function splitPair(value) {
+function splitPairFlexible(value) {
   if (value === null || value === undefined || value === "") return [NaN, NaN];
-  const parts = String(value).split("|");
-  return [
-    toNumber(parts[0] || ""),
-    toNumber(parts[1] || "")
-  ];
+
+  const text = String(value);
+  if (text.includes("|")) {
+    const parts = text.split("|");
+    return [toNumber(parts[0]), toNumber(parts[1])];
+  }
+
+  const nums = text.match(/-?\d+(\.\d+)?/g);
+  if (!nums || !nums.length) return [NaN, NaN];
+  if (nums.length === 1) return [toNumber(nums[0]), NaN];
+  return [toNumber(nums[0]), toNumber(nums[1])];
 }
 
 function sumFinite(arr) {
-  return arr.filter(n => isFinite(n)).reduce((sum, n) => sum + n, 0);
+  return arr.filter(Number.isFinite).reduce((a, b) => a + b, 0);
 }
 
-function normalizeTime(value) {
-  const text = String(value || "").replace(/\s+/g, " ").trim();
-  const full = text.match(/\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/);
-  if (full) return full[0];
-  const hm = text.match(/\d{2}:\d{2}/);
-  return hm ? hm[0] : text || "-";
-}
-
-function normalizeEvent(value) {
-  const raw = String(value || "").replace(/\r|\n/g, " ").trim();
-  const match = raw.match(/^(.*? - .*?)(?:\s{2,}.*)?$/);
-  if (match) return cleanText(match[1]);
-  return cleanText(raw);
-}
-
-function cleanText(value) {
-  return String(value || "").replace(/\s+/g, " ").trim();
-}
-
-function badgeClassForMarket(market) {
+function badgeClass(market) {
   if (market === "O0.5 PT") return "o05";
   if (market === "GG") return "gg";
   if (market === "Over 2.5") return "o25";
   return "combo";
 }
 
-function pause(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, function(char) {
+  return String(value).replace(/[&<>"']/g, (char) => {
     const map = {
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
-      '"': "&quot;",
+      "\"": "&quot;",
       "'": "&#39;"
     };
     return map[char];
