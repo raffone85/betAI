@@ -2,124 +2,210 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>betAI - Excel Analyzer</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <title>betAI</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <header class="hero">
-      <div class="hero-badge">betAI</div>
-      <h1>Analisi Excel mercati calcio</h1>
-      <p>
-        Carica i tuoi file Excel e genera liste pulite per Over 0.5 PT e GG / Over 2.5.
-      </p>
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-badge">AI</div>
+        <div>
+          <h1>betAI</h1>
+          <p class="subtitle">Analisi compatta mercati calcio</p>
+        </div>
+      </div>
+
+      <button id="btn-export" class="btn btn-dark btn-small" type="button">
+        Esporta TXT
+      </button>
     </header>
 
-    <main class="grid">
-      <section class="card">
-        <div class="card-head">
-          <span class="tag blue">Over 0.5 PT</span>
-          <span class="tag dark" id="count-o05">0 esiti</span>
+    <section class="hero-strip">
+      <div class="hero-item">
+        <span class="hero-label">Over 0.5 PT</span>
+        <span id="count-o05" class="hero-value">0 esiti</span>
+      </div>
+      <div class="hero-item">
+        <span class="hero-label">GG / Over 2.5</span>
+        <span id="count-gg25" class="hero-value">0 esiti</span>
+      </div>
+      <div class="hero-item hero-highlight">
+        <span class="hero-label">Finali</span>
+        <span id="count-final" class="hero-value">0 esiti</span>
+      </div>
+    </section>
+
+    <main class="page-grid">
+      <section class="module module-blue">
+        <div class="module-head">
+          <div>
+            <h2>Over 0.5 PT</h2>
+            <p class="module-sub">Input e selezione mercato primo tempo</p>
+          </div>
+          <span class="module-pill blue">Blu</span>
         </div>
 
-        <h2>Input Excel</h2>
-        <p class="muted">Formato basato sul file Over-0.5-Primo-Tempo.xlsx.</p>
+        <div class="upload-card compact-card">
+          <div class="upload-row">
+            <label class="btn btn-blue file-label">
+              <input id="file-o05" type="file" accept=".csv,.xlsx,.xls,.txt" hidden />
+              Seleziona file
+            </label>
 
-        <div class="upload-box">
-          <label for="file-o05" class="file-label">Seleziona Excel</label>
-          <input type="file" id="file-o05" accept=".xlsx,.xls,.csv" />
-          <button type="button" id="btn-o05" class="btn">Analizza Over 0.5 PT</button>
-          <div class="status" id="status-o05">Nessun file caricato.</div>
-        </div>
+            <div class="file-name-box" id="file-name-o05-static">
+              CSV o Excel
+            </div>
+          </div>
 
-        <div class="result-group">
-          <h3>Modalità 1</h3>
-          <div id="box-o05-premium" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
+          <button id="btn-o05" class="btn btn-blue btn-block" type="button">
+            Analizza Over 0.5 PT
+          </button>
+
+          <div id="status-o05" class="status-line">
+            Nessun file caricato.
           </div>
         </div>
 
-        <div class="result-group">
-          <h3>Lista A</h3>
-          <div id="box-o05-a" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
-          </div>
-        </div>
+        <div class="sections-grid">
+          <details class="result-section" open>
+            <summary>
+              <span>Modalità 1</span>
+              <span class="summary-badge strong">Top</span>
+            </summary>
+            <div id="box-o05-premium" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
 
-        <div class="result-group">
-          <h3>Lista B</h3>
-          <div id="box-o05-b" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
-          </div>
+          <details class="result-section" open>
+            <summary>
+              <span>Lista A</span>
+              <span class="summary-badge strong">Forte</span>
+            </summary>
+            <div id="box-o05-a" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
+
+          <details class="result-section" open>
+            <summary>
+              <span>Lista B</span>
+              <span class="summary-badge medium">Media</span>
+            </summary>
+            <div id="box-o05-b" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
         </div>
       </section>
 
-      <section class="card">
-        <div class="card-head">
-          <span class="tag green">GG / Over 2.5</span>
-          <span class="tag dark" id="count-gg25">0 esiti</span>
+      <section class="module module-green">
+        <div class="module-head">
+          <div>
+            <h2>GG / Over 2.5</h2>
+            <p class="module-sub">Selezione ordinata con priorità e taglio finale</p>
+          </div>
+          <span class="module-pill green">Verde</span>
         </div>
 
-        <h2>Input Excel</h2>
-        <p class="muted">Formato basato sul file Partite-GG-Over2.5.xlsx.</p>
+        <div class="upload-card compact-card">
+          <div class="upload-row">
+            <label class="btn btn-green file-label">
+              <input id="file-gg25" type="file" accept=".csv,.xlsx,.xls,.txt" hidden />
+              Seleziona file
+            </label>
 
-        <div class="upload-box">
-          <label for="file-gg25" class="file-label green-file">Seleziona Excel</label>
-          <input type="file" id="file-gg25" accept=".xlsx,.xls,.csv" />
-          <button type="button" id="btn-gg25" class="btn green-btn">Analizza GG / Over 2.5</button>
-          <div class="status" id="status-gg25">Nessun file caricato.</div>
-        </div>
+            <div class="file-name-box" id="file-name-gg25-static">
+              CSV o Excel
+            </div>
+          </div>
 
-        <div class="result-group">
-          <h3>GG Forte</h3>
-          <div id="box-gg-strong" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
+          <button id="btn-gg25" class="btn btn-green btn-block" type="button">
+            Analizza GG / Over 2.5
+          </button>
+
+          <div id="status-gg25" class="status-line">
+            Nessun file caricato.
           </div>
         </div>
 
-        <div class="result-group">
-          <h3>GG Medio</h3>
-          <div id="box-gg-medium" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
-          </div>
-        </div>
+        <div class="sections-grid">
+          <details class="result-section" open>
+            <summary>
+              <span>Combo</span>
+              <span class="summary-badge premium">Premium</span>
+            </summary>
+            <div id="box-combo" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
 
-        <div class="result-group">
-          <h3>Over 2.5 Forte</h3>
-          <div id="box-o25-strong" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
-          </div>
-        </div>
+          <details class="result-section" open>
+            <summary>
+              <span>GG Forte</span>
+              <span class="summary-badge strong">Forte</span>
+            </summary>
+            <div id="box-gg-strong" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
 
-        <div class="result-group">
-          <h3>Over 2.5 Medio</h3>
-          <div id="box-o25-medium" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
-          </div>
-        </div>
+          <details class="result-section">
+            <summary>
+              <span>GG Medio</span>
+              <span class="summary-badge medium">Media</span>
+            </summary>
+            <div id="box-gg-medium" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
 
-        <div class="result-group">
-          <h3>Doppia compatibilità</h3>
-          <div id="box-combo" class="list-box">
-            <div class="empty-state">Nessun esito disponibile.</div>
-          </div>
+          <details class="result-section" open>
+            <summary>
+              <span>Over 2.5 Forte</span>
+              <span class="summary-badge strong">Forte</span>
+            </summary>
+            <div id="box-o25-strong" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
+
+          <details class="result-section">
+            <summary>
+              <span>Over 2.5 Medio</span>
+              <span class="summary-badge medium">Media</span>
+            </summary>
+            <div id="box-o25-medium" class="result-list">
+              <div class="empty-state">Nessun esito disponibile.</div>
+            </div>
+          </details>
         </div>
       </section>
 
-      <section class="card full">
-        <div class="card-head">
-          <span class="tag violet">Riepilogo</span>
-          <span class="tag dark" id="count-final">0 esiti</span>
+      <section class="module module-final full-width">
+        <div class="module-head">
+          <div>
+            <h2>Selezione finale</h2>
+            <p class="module-sub">Vista compatta di tutti gli esiti selezionati</p>
+          </div>
+          <span class="module-pill final">Finale</span>
         </div>
 
-        <h2>Risultati finali</h2>
-        <p class="muted">Qui finiscono tutti gli esiti validi dei due moduli.</p>
-
-        <button type="button" id="btn-export" class="btn violet-btn">Esporta TXT</button>
-
-        <div id="box-final" class="list-box">
+        <div id="box-final" class="result-list final-list">
           <div class="empty-state">Nessun risultato disponibile.</div>
         </div>
       </section>
