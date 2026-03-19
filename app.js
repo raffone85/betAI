@@ -23,6 +23,11 @@ const btnExport = document.getElementById("btn-export");
 let selectedO05 = null;
 let selectedGG25 = null;
 
+const isIPhoneSafari =
+  /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+  /Safari/i.test(navigator.userAgent) &&
+  !/CriOS|FxiOS|EdgiOS/i.test(navigator.userAgent);
+
 const state = {
   over05: [],
   gg25: []
@@ -66,6 +71,14 @@ const HEADER_SCHEMAS = {
     }
   }
 };
+
+fileO05.addEventListener("click", () => {
+  fileO05.value = "";
+});
+
+fileGG25.addEventListener("click", () => {
+  fileGG25.value = "";
+});
 
 fileO05.addEventListener("change", (e) => {
   selectedO05 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
@@ -172,19 +185,30 @@ async function analyzeGG25() {
 }
 
 async function readExcelRows(file, schemaName) {
-  const buffer = await getFileBuffer(file);
-  const workbook = XLSX.read(buffer, { type: "array" });
+  const workbook = await readWorkbookSafe(file);
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
 
-  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
-  if (!matrix || !matrix.length) return [];
+  const matrix = XLSX.utils.sheet_to_json(sheet, {
+    header: 1,
+    defval: "",
+    raw: false,
+    blankrows: false
+  });
+
+  if (!matrix || !matrix.length) {
+    throw new Error("File Excel vuoto o non leggibile.");
+  }
 
   const schema = HEADER_SCHEMAS[schemaName];
   const headerIndex = findBestHeaderRow(matrix, schema);
 
   if (headerIndex === -1) {
-    throw new Error("Intestazioni non trovate nel file Excel.");
+    const preview = matrix
+      .slice(0, 6)
+      .map(row => (row || []).map(cell => cleanText(cell)).join(" | "))
+      .join(" || ");
+    throw new Error("Intestazioni non trovate. Preview: " + preview);
   }
 
   const rawHeaderRow = matrix[headerIndex] || [];
@@ -221,8 +245,7 @@ function findBestHeaderRow(matrix, schema) {
     }
   }
 
-  const minRequired = Math.max(2, Math.min(schema.required.length, 4));
-  return bestScore >= minRequired ? bestIndex : -1;
+  return bestScore >= 6 ? bestIndex : -1;
 }
 
 function scoreHeaderRow(row, schema) {
@@ -231,31 +254,57 @@ function scoreHeaderRow(row, schema) {
 
   schema.required.forEach(req => {
     const aliases = (schema.aliases[req] || [req]).map(canonicalHeader);
-    if (aliases.some(alias => normalizedCells.includes(alias))) {
-      score += 2;
-    }
+    if (aliases.some(alias => normalizedCells.includes(alias))) score += 2;
   });
 
   Object.keys(schema.aliases).forEach(key => {
     const aliases = schema.aliases[key].map(canonicalHeader);
-    if (aliases.some(alias => normalizedCells.includes(alias))) {
-      score += 1;
-    }
+    if (aliases.some(alias => normalizedCells.includes(alias))) score += 1;
   });
 
   return score;
 }
 
-async function getFileBuffer(file) {
-  if (file && typeof file.arrayBuffer === "function") {
-    return await file.arrayBuffer();
+async function readWorkbookSafe(file) {
+  if (isIPhoneSafari) {
+    try {
+      const binary = await readFileAsBinaryString(file);
+      return XLSX.read(binary, { type: "binary" });
+    } catch (err) {
+      const ab = await readFileAsArrayBuffer(file);
+      return XLSX.read(new Uint8Array(ab), { type: "array" });
+    }
   }
 
-  return await new Promise((resolve, reject) => {
+  if (file && typeof file.arrayBuffer === "function") {
+    const ab = await file.arrayBuffer();
+    return XLSX.read(new Uint8Array(ab), { type: "array" });
+  }
+
+  const ab = await readFileAsArrayBuffer(file);
+  return XLSX.read(new Uint8Array(ab), { type: "array" });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => resolve(e.target.result);
     reader.onerror = () => reject(new Error("Impossibile leggere il file"));
     reader.readAsArrayBuffer(file);
+  });
+}
+
+function readFileAsBinaryString(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error("Impossibile leggere il file"));
+
+    if (typeof reader.readAsBinaryString === "function") {
+      reader.readAsBinaryString(file);
+    } else {
+      reject(new Error("readAsBinaryString non supportato"));
+    }
   });
 }
 
@@ -564,36 +613,35 @@ function normalizeEvent(value) {
   if (!text) return "";
 
   text = text.replace(/\s{2,}/g, " ");
-
   if (!text.includes(" - ")) return text;
 
-  const parts = text.split(" - ");
-  const left = cleanText(parts.shift());
-  let right = cleanText(parts.join(" - "));
+  const dashIndex = text.indexOf(" - ");
+  const left = cleanText(text.slice(0, dashIndex));
+  let right = cleanText(text.slice(dashIndex + 3));
 
   if (!left || !right) return cleanText(text);
 
   const leftEscaped = escapeRegExp(left);
-  const repeatRegex = new RegExp(`\\b${leftEscaped}\\b`, "i");
-  const repeatMatch = right.match(repeatRegex);
+  const repeatedLeft = new RegExp(`\\b${leftEscaped}\\b`, "i");
+  const repeatedLeftMatch = right.match(repeatedLeft);
 
-  if (repeatMatch && repeatMatch.index > 0) {
-    right = cleanText(right.slice(0, repeatMatch.index));
+  if (repeatedLeftMatch && repeatedLeftMatch.index > 0) {
+    right = cleanText(right.slice(0, repeatedLeftMatch.index));
   }
 
-  right = removeTrailingRepeat(right);
+  right = trimRepeatedTail(right);
 
   return cleanText(`${left} - ${right}`);
 }
 
-function removeTrailingRepeat(text) {
+function trimRepeatedTail(text) {
   const tokens = cleanText(text).split(" ").filter(Boolean);
   if (tokens.length < 2) return cleanText(text);
 
   for (let size = Math.floor(tokens.length / 2); size >= 1; size--) {
-    const endA = tokens.slice(tokens.length - size).join(" ");
-    const endB = tokens.slice(tokens.length - 2 * size, tokens.length - size).join(" ");
-    if (endA.toLowerCase() === endB.toLowerCase()) {
+    const a = tokens.slice(tokens.length - size).join(" ").toLowerCase();
+    const b = tokens.slice(tokens.length - size * 2, tokens.length - size).join(" ").toLowerCase();
+    if (a && a === b) {
       return tokens.slice(0, tokens.length - size).join(" ");
     }
   }
@@ -623,6 +671,7 @@ function splitPairFlexible(value) {
   if (value === null || value === undefined || value === "") return [NaN, NaN];
 
   const text = String(value);
+
   if (text.includes("|")) {
     const parts = text.split("|");
     return [toNumber(parts[0]), toNumber(parts[1])];
