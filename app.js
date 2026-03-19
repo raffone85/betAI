@@ -418,36 +418,132 @@ function buildGG25Results(rows) {
     const diff = toNumber(getValue(row, ["DIFF"]));
     const pgg = toNumber(getValue(row, ["PGG"]));
     const s1s2 = toNumber(getValue(row, ["S1S2"]));
+    const qov25 = toNumber(getValue(row, ["QOV25"]));
+
+    if (!isFinite(igbc) && !isFinite(igbo) && !isFinite(igbt)) return;
+
+    let ggScore = 0;
+    let o25Score = 0;
+
+    if (isFinite(igbc)) {
+      if (igbc >= 220) ggScore += 2.2;
+      else if (igbc >= 170) ggScore += 1.7;
+      else if (igbc >= 130) ggScore += 1.2;
+      else if (igbc >= 100) ggScore += 0.7;
+    }
+
+    if (isFinite(igbo)) {
+      if (igbo >= 150) ggScore += 2.1;
+      else if (igbo >= 115) ggScore += 1.6;
+      else if (igbo >= 90) ggScore += 1.1;
+      else if (igbo >= 70) ggScore += 0.6;
+    }
+
+    if (isFinite(pgg)) {
+      if (pgg >= 70) ggScore += 1.8;
+      else if (pgg >= 62) ggScore += 1.3;
+      else if (pgg >= 55) ggScore += 0.9;
+      else if (pgg >= 48) ggScore += 0.4;
+    }
+
+    if (isFinite(diff)) {
+      if (diff <= -1.2) {
+        ggScore += 1.6;
+        o25Score += 1.5;
+      } else if (diff <= -0.4) {
+        ggScore += 1.1;
+        o25Score += 1.1;
+      } else if (diff <= 0.2) {
+        ggScore += 0.7;
+        o25Score += 0.7;
+      } else if (diff <= 0.8) {
+        ggScore += 0.3;
+        o25Score += 0.3;
+      }
+    }
+
+    if (isFinite(s1s2)) {
+      if (s1s2 <= 90) {
+        ggScore += 1.8;
+        o25Score += 1.6;
+      } else if (s1s2 <= 160) {
+        ggScore += 1.2;
+        o25Score += 1.1;
+      } else if (s1s2 <= 260) {
+        ggScore += 0.6;
+        o25Score += 0.6;
+      } else if (s1s2 <= 360) {
+        ggScore += 0.2;
+        o25Score += 0.2;
+      }
+    }
+
+    if (isFinite(igbt)) {
+      if (igbt >= 400) o25Score += 2.5;
+      else if (igbt >= 340) o25Score += 1.9;
+      else if (igbt >= 290) o25Score += 1.4;
+      else if (igbt >= 240) o25Score += 0.9;
+      else if (igbt >= 200) o25Score += 0.4;
+    }
+
+    if (isFinite(mge)) {
+      if (mge >= 3.5) o25Score += 2;
+      else if (mge >= 3.0) o25Score += 1.5;
+      else if (mge >= 2.7) o25Score += 1;
+      else if (mge >= 2.45) o25Score += 0.5;
+    } else {
+      if (isFinite(igbt) && igbt >= 280) o25Score += 0.3;
+      if (isFinite(pgg) && pgg >= 60) ggScore += 0.2;
+    }
+
+    if (isFinite(qov25)) {
+      if (qov25 <= 1.45) o25Score += 1.1;
+      else if (qov25 <= 1.60) o25Score += 0.8;
+      else if (qov25 <= 1.80) o25Score += 0.5;
+      else if (qov25 <= 2.00) o25Score += 0.2;
+    }
 
     const ggStrongCheck =
-      isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(s1s2) &&
-      igbc > 120 && igbo > 100 && pgg > 60 && diff <= 0 && s1s2 < 200;
+      ggScore >= 5.4 &&
+      isFinite(igbc) && igbc >= 120 &&
+      isFinite(igbo) && igbo >= 85 &&
+      isFinite(pgg) && pgg >= 52 &&
+      (!isFinite(s1s2) || s1s2 <= 260);
 
     const ggMediumCheck =
-      isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(s1s2) &&
-      igbc > 100 && igbo > 80 && pgg > 52 && diff <= 0.5 && s1s2 < 300;
+      !ggStrongCheck &&
+      ggScore >= 4.0 &&
+      (
+        (isFinite(igbc) && igbc >= 105) ||
+        (isFinite(igbo) && igbo >= 80)
+      ) &&
+      (!isFinite(s1s2) || s1s2 <= 420);
 
     const o25StrongCheck =
-      isFinite(igbt) && isFinite(mge) && isFinite(diff) && isFinite(s1s2) &&
-      igbt >= 300 && mge >= 2.8 && diff <= 0 && s1s2 < 220;
+      o25Score >= 5.2 &&
+      isFinite(igbt) && igbt >= 260 &&
+      (!isFinite(mge) || mge >= 2.6) &&
+      (!isFinite(s1s2) || s1s2 <= 320);
 
     const o25MediumCheck =
-      isFinite(igbt) && isFinite(mge) && isFinite(diff) && isFinite(s1s2) &&
-      igbt >= 260 && mge >= 2.5 && diff <= 0.6 && s1s2 < 350;
+      !o25StrongCheck &&
+      o25Score >= 4.0 &&
+      isFinite(igbt) && igbt >= 220 &&
+      (!isFinite(s1s2) || s1s2 <= 450);
 
     if (ggStrongCheck) {
       ggStrong.push({
         ora,
         evento,
         quality: "Forte",
-        score: igbc + igbo + pgg - s1s2
+        score: ggScore
       });
     } else if (ggMediumCheck) {
       ggMedium.push({
         ora,
         evento,
         quality: "Media",
-        score: igbc + igbo + pgg - s1s2
+        score: ggScore
       });
     }
 
@@ -456,23 +552,30 @@ function buildGG25Results(rows) {
         ora,
         evento,
         quality: "Forte",
-        score: igbt + (mge * 20) - s1s2
+        score: o25Score
       });
     } else if (o25MediumCheck) {
       o25Medium.push({
         ora,
         evento,
         quality: "Media",
-        score: igbt + (mge * 20) - s1s2
+        score: o25Score
       });
     }
 
-    if (ggStrongCheck && o25StrongCheck) {
+    const comboScore = ggScore + o25Score;
+    const comboCheck =
+      (
+        (ggStrongCheck && o25StrongCheck) ||
+        (comboScore >= 10 && (ggStrongCheck || ggMediumCheck) && (o25StrongCheck || o25MediumCheck))
+      );
+
+    if (comboCheck) {
       combo.push({
         ora,
         evento,
-        quality: "Forte",
-        score: igbc + igbo + igbt + (mge * 20) + pgg - s1s2
+        quality: comboScore >= 11 ? "Forte" : "Media",
+        score: comboScore
       });
     }
   });
@@ -594,8 +697,11 @@ function normalizeTime(value) {
   const text = cleanText(value);
   const full = text.match(/\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}/);
   if (full) return full[0];
-  const hm = text.match(/\d{2}:\d{2}/);
-  return hm ? hm[0] : (text || "-");
+
+  const allTimes = text.match(/\d{2}:\d{2}/g);
+  if (allTimes && allTimes.length) return allTimes[allTimes.length - 1];
+
+  return text || "-";
 }
 
 function normalizeEvent(value) {
@@ -620,6 +726,7 @@ function normalizeEvent(value) {
   }
 
   right = trimRepeatedTail(right);
+  right = dedupeWordTail(right);
 
   return cleanText(`${left} - ${right}`);
 }
@@ -637,6 +744,18 @@ function trimRepeatedTail(text) {
   }
 
   return cleanText(text);
+}
+
+function dedupeWordTail(text) {
+  const tokens = cleanText(text).split(" ").filter(Boolean);
+  if (tokens.length < 3) return cleanText(text);
+
+  const out = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (i > 0 && tokens[i].toLowerCase() === tokens[i - 1].toLowerCase()) continue;
+    out.push(tokens[i]);
+  }
+  return out.join(" ");
 }
 
 function toNumber(value) {
