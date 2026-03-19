@@ -28,6 +28,45 @@ const state = {
   gg25: []
 };
 
+const HEADER_SCHEMAS = {
+  O05: {
+    required: ["ORA", "EVENTO", "IND", "DELTA"],
+    aliases: {
+      ORA: ["ORA"],
+      EVENTO: ["EVENTO"],
+      RPT: ["RPT", "RIS", "RIS."],
+      IND: ["IND"],
+      QROV05PT: ["QROV0.5PT", "QROV05PT"],
+      DELTA: ["DELTA"],
+      U5CO: ["U5[C|O]", "U5CO", "U5C|O"],
+      U5CTCO: ["U5CT[C|O]", "U5CTCO", "U5CTC|O"],
+      DIFF: ["DIFF"],
+      MGE: ["MGE"],
+      COV05: ["COV0.5%", "COV05", "COV05%"],
+      OOV05: ["OOV0.5%", "OOV05", "OOV05%"],
+      QRGG: ["QRGG"],
+      QRO25: ["QRO25", "QROV25", "QOV25"]
+    }
+  },
+  GG25: {
+    required: ["ORA", "NAZIONE", "EVENTO", "IGBC", "IGBO", "IGBT"],
+    aliases: {
+      ORA: ["ORA"],
+      NAZIONE: ["NAZIONE"],
+      EVENTO: ["EVENTO"],
+      RIS: ["RIS.", "RIS"],
+      IGBC: ["IGBC"],
+      IGBO: ["IGBO"],
+      IGBT: ["IGBT"],
+      MGE: ["MGE"],
+      DIFF: ["DIFF"],
+      PGG: ["PGG"],
+      S1S2: ["S1-S2", "S1S2"],
+      QOV25: ["QOV2.5", "QOV25", "QOV2_5"]
+    }
+  }
+};
+
 fileO05.addEventListener("change", (e) => {
   selectedO05 = e.target.files && e.target.files[0] ? e.target.files[0] : null;
   statusO05.textContent = selectedO05
@@ -61,7 +100,7 @@ async function analyzeO05() {
   statusO05.textContent = "Lettura file in corso...";
 
   try {
-    const rows = await readExcelRows(selectedO05, ["ORA", "EVENTO"]);
+    const rows = await readExcelRows(selectedO05, "O05");
     const results = buildOver05Results(rows);
 
     renderList(boxO05Premium, results.premium, "O0.5 PT", "o05", false);
@@ -102,7 +141,7 @@ async function analyzeGG25() {
   statusGG25.textContent = "Lettura file in corso...";
 
   try {
-    const rows = await readExcelRows(selectedGG25, ["ORA", "EVENTO"]);
+    const rows = await readExcelRows(selectedGG25, "GG25");
     const results = buildGG25Results(rows);
 
     renderList(boxGGStrong, results.ggStrong, "GG", "gg", false);
@@ -132,21 +171,24 @@ async function analyzeGG25() {
   }
 }
 
-async function readExcelRows(file, requiredHeaders = []) {
+async function readExcelRows(file, schemaName) {
   const buffer = await getFileBuffer(file);
   const workbook = XLSX.read(buffer, { type: "array" });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
 
-  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
   if (!matrix || !matrix.length) return [];
 
-  const headerIndex = findHeaderRow(matrix, requiredHeaders);
+  const schema = HEADER_SCHEMAS[schemaName];
+  const headerIndex = findBestHeaderRow(matrix, schema);
+
   if (headerIndex === -1) {
     throw new Error("Intestazioni non trovate nel file Excel.");
   }
 
-  const headers = matrix[headerIndex].map((v) => normalizeHeader(v));
+  const rawHeaderRow = matrix[headerIndex] || [];
+  const headers = rawHeaderRow.map(cell => canonicalHeader(cell));
   const rows = [];
 
   for (let i = headerIndex + 1; i < matrix.length; i++) {
@@ -159,22 +201,49 @@ async function readExcelRows(file, requiredHeaders = []) {
       obj[header] = row[index];
     });
 
-    rows.push(obj);
+    if (Object.keys(obj).length) rows.push(obj);
   }
 
   return rows;
 }
 
-function findHeaderRow(matrix, requiredHeaders) {
-  const wanted = requiredHeaders.map(normalizeHeader);
+function findBestHeaderRow(matrix, schema) {
+  let bestIndex = -1;
+  let bestScore = -1;
 
-  for (let i = 0; i < Math.min(matrix.length, 12); i++) {
-    const row = matrix[i].map(normalizeHeader);
-    const ok = wanted.every(h => row.includes(h));
-    if (ok) return i;
+  for (let i = 0; i < Math.min(matrix.length, 25); i++) {
+    const row = matrix[i] || [];
+    const score = scoreHeaderRow(row, schema);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
   }
 
-  return -1;
+  const minRequired = Math.max(2, Math.min(schema.required.length, 4));
+  return bestScore >= minRequired ? bestIndex : -1;
+}
+
+function scoreHeaderRow(row, schema) {
+  const normalizedCells = row.map(cell => canonicalHeader(cell)).filter(Boolean);
+  let score = 0;
+
+  schema.required.forEach(req => {
+    const aliases = (schema.aliases[req] || [req]).map(canonicalHeader);
+    if (aliases.some(alias => normalizedCells.includes(alias))) {
+      score += 2;
+    }
+  });
+
+  Object.keys(schema.aliases).forEach(key => {
+    const aliases = schema.aliases[key].map(canonicalHeader);
+    if (aliases.some(alias => normalizedCells.includes(alias))) {
+      score += 1;
+    }
+  });
+
+  return score;
 }
 
 async function getFileBuffer(file) {
@@ -196,22 +265,22 @@ function buildOver05Results(rows) {
   const listaB = [];
 
   rows.forEach((row) => {
-    const ora = normalizeTime(getVal(row, ["ORA"]));
-    const evento = normalizeEvent(getVal(row, ["EVENTO"]));
+    const ora = normalizeTime(getValue(row, ["ORA"]));
+    const evento = normalizeEvent(getValue(row, ["EVENTO"]));
     if (!evento) return;
 
-    const ind = toNumber(getVal(row, ["IND"]));
-    const delta = toPercentNumber(getVal(row, ["DELTA"]));
-    const diff = toNumber(getVal(row, ["DIFF"]));
-    const mge = toNumber(getVal(row, ["MGE"]));
-    const cov = toPercentNumber(getVal(row, ["COV0.5%"]));
-    const oov = toPercentNumber(getVal(row, ["OOV0.5%"]));
-    const qrgg = toNumber(getVal(row, ["QRGG"]));
-    const qro25 = toNumber(getVal(row, ["QRO25"]));
-    const qro05 = toNumber(getVal(row, ["QROV0.5PT"]));
+    const ind = toNumber(getValue(row, ["IND"]));
+    const delta = toPercentNumber(getValue(row, ["DELTA"]));
+    const diff = toNumber(getValue(row, ["DIFF"]));
+    const mge = toNumber(getValue(row, ["MGE"]));
+    const cov = toPercentNumber(getValue(row, ["COV05"]));
+    const oov = toPercentNumber(getValue(row, ["OOV05"]));
+    const qrgg = toNumber(getValue(row, ["QRGG"]));
+    const qro25 = toNumber(getValue(row, ["QRO25"]));
+    const qro05 = toNumber(getValue(row, ["QROV05PT"]));
 
-    const u5 = splitPairFlexible(getVal(row, ["U5[C|O]"]));
-    const u5ct = splitPairFlexible(getVal(row, ["U5CT[C|O]"]));
+    const u5 = splitPairFlexible(getValue(row, ["U5CO"]));
+    const u5ct = splitPairFlexible(getValue(row, ["U5CTCO"]));
 
     if (isFinite(ind) && isFinite(delta) && isFinite(diff)) {
       if (delta < -20 && ind < 320 && diff < 0) {
@@ -270,17 +339,17 @@ function buildGG25Results(rows) {
   const combo = [];
 
   rows.forEach((row) => {
-    const ora = normalizeTime(getVal(row, ["ORA"]));
-    const evento = normalizeEvent(getVal(row, ["EVENTO"]));
+    const ora = normalizeTime(getValue(row, ["ORA"]));
+    const evento = normalizeEvent(getValue(row, ["EVENTO"]));
     if (!evento) return;
 
-    const igbc = toNumber(getVal(row, ["IGBC"]));
-    const igbo = toNumber(getVal(row, ["IGBO"]));
-    const igbt = toNumber(getVal(row, ["IGBT"]));
-    const mge = toNumber(getVal(row, ["MGE"]));
-    const diff = toNumber(getVal(row, ["DIFF"]));
-    const pgg = toNumber(getVal(row, ["PGG"]));
-    const s1s2 = toNumber(getVal(row, ["S1-S2"]));
+    const igbc = toNumber(getValue(row, ["IGBC"]));
+    const igbo = toNumber(getValue(row, ["IGBO"]));
+    const igbt = toNumber(getValue(row, ["IGBT"]));
+    const mge = toNumber(getValue(row, ["MGE"]));
+    const diff = toNumber(getValue(row, ["DIFF"]));
+    const pgg = toNumber(getValue(row, ["PGG"]));
+    const s1s2 = toNumber(getValue(row, ["S1S2"]));
 
     const ggStrongCheck =
       isFinite(igbc) && isFinite(igbo) && isFinite(pgg) && isFinite(diff) && isFinite(s1s2) &&
@@ -460,17 +529,22 @@ function setLoading(button, isLoading, text) {
   button.textContent = text;
 }
 
-function getVal(obj, keys) {
+function getValue(obj, keys) {
   for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+    if (obj[key] !== undefined && obj[key] !== null && cleanText(obj[key]) !== "") {
       return obj[key];
     }
   }
   return "";
 }
 
-function normalizeHeader(value) {
-  return cleanText(value).toUpperCase();
+function canonicalHeader(value) {
+  return cleanText(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[^A-Z0-9.\-%\[\]\|]/g, "");
 }
 
 function cleanText(value) {
@@ -486,9 +560,45 @@ function normalizeTime(value) {
 }
 
 function normalizeEvent(value) {
-  const text = cleanText(value);
-  const match = text.match(/^(.*? - .*?)(?:\s{2,}.*)?$/);
-  return match ? cleanText(match[1]) : text;
+  let text = cleanText(value);
+  if (!text) return "";
+
+  text = text.replace(/\s{2,}/g, " ");
+
+  if (!text.includes(" - ")) return text;
+
+  const parts = text.split(" - ");
+  const left = cleanText(parts.shift());
+  let right = cleanText(parts.join(" - "));
+
+  if (!left || !right) return cleanText(text);
+
+  const leftEscaped = escapeRegExp(left);
+  const repeatRegex = new RegExp(`\\b${leftEscaped}\\b`, "i");
+  const repeatMatch = right.match(repeatRegex);
+
+  if (repeatMatch && repeatMatch.index > 0) {
+    right = cleanText(right.slice(0, repeatMatch.index));
+  }
+
+  right = removeTrailingRepeat(right);
+
+  return cleanText(`${left} - ${right}`);
+}
+
+function removeTrailingRepeat(text) {
+  const tokens = cleanText(text).split(" ").filter(Boolean);
+  if (tokens.length < 2) return cleanText(text);
+
+  for (let size = Math.floor(tokens.length / 2); size >= 1; size--) {
+    const endA = tokens.slice(tokens.length - size).join(" ");
+    const endB = tokens.slice(tokens.length - 2 * size, tokens.length - size).join(" ");
+    if (endA.toLowerCase() === endB.toLowerCase()) {
+      return tokens.slice(0, tokens.length - size).join(" ");
+    }
+  }
+
+  return cleanText(text);
 }
 
 function toNumber(value) {
@@ -546,4 +656,8 @@ function escapeHtml(value) {
     };
     return map[char];
   });
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
