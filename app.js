@@ -94,18 +94,13 @@ fileGG25.addEventListener("change", (e) => {
     : "Nessun file caricato.";
 });
 
-bindPress(btnO05, analyzeO05);
-bindPress(btnGG25, analyzeGG25);
-bindPress(btnExport, exportTxt);
+btnO05.addEventListener("click", analyzeO05);
+btnGG25.addEventListener("click", analyzeGG25);
+btnExport.addEventListener("click", exportTxt);
 
 async function analyzeO05() {
   if (!selectedO05) {
-    statusO05.textContent = "Seleziona prima un file Excel.";
-    return;
-  }
-
-  if (typeof XLSX === "undefined") {
-    statusO05.textContent = "Libreria XLSX non caricata.";
+    statusO05.textContent = "Seleziona prima un file CSV o Excel.";
     return;
   }
 
@@ -113,12 +108,12 @@ async function analyzeO05() {
   statusO05.textContent = "Lettura file in corso...";
 
   try {
-    const rows = await readExcelRows(selectedO05, "O05");
+    const rows = await readRowsFromFile(selectedO05, "O05");
     const results = buildOver05Results(rows);
 
-    renderList(boxO05Premium, results.premium, "O0.5 PT", "o05", false);
-    renderList(boxO05A, results.listaA, "O0.5 PT", "o05", false);
-    renderList(boxO05B, results.listaB, "O0.5 PT", "o05", false);
+    renderList(boxO05Premium, results.premium, "O0.5 PT", "o05");
+    renderList(boxO05A, results.listaA, "O0.5 PT", "o05");
+    renderList(boxO05B, results.listaB, "O0.5 PT", "o05");
 
     const merged = [
       ...results.premium.map(x => ({ ...x, market: "O0.5 PT", qualityClass: "strong", rank: 1 })),
@@ -141,12 +136,7 @@ async function analyzeO05() {
 
 async function analyzeGG25() {
   if (!selectedGG25) {
-    statusGG25.textContent = "Seleziona prima un file Excel.";
-    return;
-  }
-
-  if (typeof XLSX === "undefined") {
-    statusGG25.textContent = "Libreria XLSX non caricata.";
+    statusGG25.textContent = "Seleziona prima un file CSV o Excel.";
     return;
   }
 
@@ -154,14 +144,14 @@ async function analyzeGG25() {
   statusGG25.textContent = "Lettura file in corso...";
 
   try {
-    const rows = await readExcelRows(selectedGG25, "GG25");
+    const rows = await readRowsFromFile(selectedGG25, "GG25");
     const results = buildGG25Results(rows);
 
-    renderList(boxGGStrong, results.ggStrong, "GG", "gg", false);
-    renderList(boxGGMedium, results.ggMedium, "GG", "gg", false);
-    renderList(boxO25Strong, results.o25Strong, "Over 2.5", "o25", false);
-    renderList(boxO25Medium, results.o25Medium, "Over 2.5", "o25", false);
-    renderList(boxCombo, results.combo, "Combo", "combo", false);
+    renderList(boxGGStrong, results.ggStrong, "GG", "gg");
+    renderList(boxGGMedium, results.ggMedium, "GG", "gg");
+    renderList(boxO25Strong, results.o25Strong, "Over 2.5", "o25");
+    renderList(boxO25Medium, results.o25Medium, "Over 2.5", "o25");
+    renderList(boxCombo, results.combo, "Combo", "combo");
 
     const merged = [
       ...results.combo.map(x => ({ ...x, market: "Combo", qualityClass: "strong", rank: 0 })),
@@ -184,20 +174,46 @@ async function analyzeGG25() {
   }
 }
 
-async function readExcelRows(file, schemaName) {
-  const workbook = await readWorkbookSafe(file);
+async function readRowsFromFile(file, schemaName) {
+  const ext = getExtension(file.name);
+
+  if (ext === "csv" || ext === "txt") {
+    const text = await readFileAsText(file);
+    const matrix = parseCSV(text);
+    return matrixToObjects(matrix, schemaName);
+  }
+
+  if (ext === "xlsx" || ext === "xls") {
+    if (isIPhoneSafari) {
+      throw new Error("Su iPhone usa il CSV esportato da Excel, non il file .xlsx.");
+    }
+    if (typeof XLSX === "undefined") {
+      throw new Error("Libreria XLSX non caricata.");
+    }
+    const matrix = await readExcelMatrix(file);
+    return matrixToObjects(matrix, schemaName);
+  }
+
+  throw new Error("Formato non supportato. Usa CSV su iPhone oppure XLSX/CSV su PC.");
+}
+
+async function readExcelMatrix(file) {
+  const ab = await readFileAsArrayBuffer(file);
+  const workbook = XLSX.read(new Uint8Array(ab), { type: "array" });
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
 
-  const matrix = XLSX.utils.sheet_to_json(sheet, {
+  return XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     defval: "",
     raw: false,
     blankrows: false
   });
+}
 
+function matrixToObjects(matrix, schemaName) {
   if (!matrix || !matrix.length) {
-    throw new Error("File Excel vuoto o non leggibile.");
+    throw new Error("File vuoto o non leggibile.");
   }
 
   const schema = HEADER_SCHEMAS[schemaName];
@@ -235,10 +251,8 @@ function findBestHeaderRow(matrix, schema) {
   let bestIndex = -1;
   let bestScore = -1;
 
-  for (let i = 0; i < Math.min(matrix.length, 25); i++) {
-    const row = matrix[i] || [];
-    const score = scoreHeaderRow(row, schema);
-
+  for (let i = 0; i < Math.min(matrix.length, 20); i++) {
+    const score = scoreHeaderRow(matrix[i] || [], schema);
     if (score > bestScore) {
       bestScore = score;
       bestIndex = i;
@@ -265,49 +279,6 @@ function scoreHeaderRow(row, schema) {
   return score;
 }
 
-async function readWorkbookSafe(file) {
-  if (isIPhoneSafari) {
-    try {
-      const binary = await readFileAsBinaryString(file);
-      return XLSX.read(binary, { type: "binary" });
-    } catch (err) {
-      const ab = await readFileAsArrayBuffer(file);
-      return XLSX.read(new Uint8Array(ab), { type: "array" });
-    }
-  }
-
-  if (file && typeof file.arrayBuffer === "function") {
-    const ab = await file.arrayBuffer();
-    return XLSX.read(new Uint8Array(ab), { type: "array" });
-  }
-
-  const ab = await readFileAsArrayBuffer(file);
-  return XLSX.read(new Uint8Array(ab), { type: "array" });
-}
-
-function readFileAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error("Impossibile leggere il file"));
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function readFileAsBinaryString(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error("Impossibile leggere il file"));
-
-    if (typeof reader.readAsBinaryString === "function") {
-      reader.readAsBinaryString(file);
-    } else {
-      reject(new Error("readAsBinaryString non supportato"));
-    }
-  });
-}
-
 function buildOver05Results(rows) {
   const premium = [];
   const listaA = [];
@@ -327,7 +298,6 @@ function buildOver05Results(rows) {
     const qrgg = toNumber(getValue(row, ["QRGG"]));
     const qro25 = toNumber(getValue(row, ["QRO25"]));
     const qro05 = toNumber(getValue(row, ["QROV05PT"]));
-
     const u5 = splitPairFlexible(getValue(row, ["U5CO"]));
     const u5ct = splitPairFlexible(getValue(row, ["U5CTCO"]));
 
@@ -348,7 +318,6 @@ function buildOver05Results(rows) {
     if (isFinite(delta)) score += delta <= -20 ? 2 : delta <= -10 ? 1.25 : delta < 0 ? 0.5 : 0;
     if (isFinite(diff)) score += diff < 0 ? 1.5 : diff <= 0.2 ? 0.5 : 0;
     if (isFinite(mge)) score += mge >= 3.2 ? 1.5 : mge >= 2.8 ? 1 : mge >= 2.4 ? 0.5 : 0;
-
     if (isFinite(cov)) score += cov >= 80 ? 1 : cov >= 72 ? 0.6 : 0;
     if (isFinite(oov)) score += oov >= 80 ? 1 : oov >= 72 ? 0.6 : 0;
     if (isFinite(qrgg) && isFinite(qro25) && qrgg <= qro25) score += 0.7;
@@ -492,7 +461,7 @@ function updateFinal() {
   `).join("");
 }
 
-function renderList(container, items, label, marketClass, showQuality = false) {
+function renderList(container, items, label, marketClass) {
   if (!items.length) {
     container.innerHTML = `<div class="empty-state">Nessun esito disponibile.</div>`;
     return;
@@ -506,7 +475,6 @@ function renderList(container, items, label, marketClass, showQuality = false) {
       </div>
       <div class="result-right">
         <span class="badge ${marketClass}">${escapeHtml(label)}</span>
-        ${showQuality ? `<span class="badge ${item.quality === "Forte" ? "strong" : "medium"}">${escapeHtml(item.quality)}</span>` : ""}
       </div>
     </div>
   `).join("");
@@ -539,43 +507,14 @@ function exportTxt() {
   setTimeout(() => URL.revokeObjectURL(url), 800);
 }
 
-function bindPress(element, handler) {
-  let touchStamp = 0;
-  let locked = false;
-
-  const run = async (event, fromTouch) => {
-    if (locked) return;
-
-    if (fromTouch) {
-      touchStamp = Date.now();
-    } else if (Date.now() - touchStamp < 700) {
-      return;
-    }
-
-    locked = true;
-    try {
-      await handler(event);
-    } finally {
-      setTimeout(() => {
-        locked = false;
-      }, 250);
-    }
-  };
-
-  element.addEventListener("touchend", async (event) => {
-    event.preventDefault();
-    await run(event, true);
-  }, { passive: false });
-
-  element.addEventListener("click", async (event) => {
-    event.preventDefault();
-    await run(event, false);
-  });
-}
-
 function setLoading(button, isLoading, text) {
   button.disabled = isLoading;
   button.textContent = text;
+}
+
+function getExtension(name) {
+  const parts = String(name || "").toLowerCase().split(".");
+  return parts.length > 1 ? parts.pop() : "";
 }
 
 function getValue(obj, keys) {
@@ -589,6 +528,7 @@ function getValue(obj, keys) {
 
 function canonicalHeader(value) {
   return cleanText(value)
+    .replace(/^\uFEFF/, "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
@@ -651,27 +591,25 @@ function trimRepeatedTail(text) {
 
 function toNumber(value) {
   if (value === null || value === undefined || value === "") return NaN;
-  const match = String(value).replace(",", ".").match(/-?\d+(\.\d+)?/);
+  const text = String(value).trim().replace(/\s/g, "").replace(",", ".");
+  const match = text.match(/-?\d+(\.\d+)?/);
   return match ? parseFloat(match[0]) : NaN;
 }
 
 function toPercentNumber(value) {
   if (value === null || value === undefined || value === "") return NaN;
-  const text = String(value).trim().replace(",", ".");
-  if (text.includes("%")) {
-    const n = parseFloat(text.replace("%", ""));
-    return Number.isFinite(n) ? n : NaN;
-  }
-  const n = parseFloat(text);
+  const text = String(value).trim().replace(/\s/g, "").replace(",", ".");
+  const hasPercent = text.includes("%");
+  const n = parseFloat(text.replace("%", ""));
   if (!Number.isFinite(n)) return NaN;
+  if (hasPercent) return n;
   return n <= 1 ? n * 100 : n;
 }
 
 function splitPairFlexible(value) {
   if (value === null || value === undefined || value === "") return [NaN, NaN];
 
-  const text = String(value);
-
+  const text = String(value).replace(/;/g, "|");
   if (text.includes("|")) {
     const parts = text.split("|");
     return [toNumber(parts[0]), toNumber(parts[1])];
@@ -709,4 +647,83 @@ function escapeHtml(value) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error("Impossibile leggere il file."));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(String(e.target.result || ""));
+    reader.onerror = () => reject(new Error("Impossibile leggere il CSV."));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+function parseCSV(text) {
+  const clean = String(text || "").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = clean.split("\n").filter(line => line.trim() !== "");
+  const sample = lines.slice(0, 5).join("\n");
+
+  const commaCount = (sample.match(/,/g) || []).length;
+  const semicolonCount = (sample.match(/;/g) || []).length;
+  const tabCount = (sample.match(/\t/g) || []).length;
+
+  let delimiter = ",";
+  if (semicolonCount >= commaCount && semicolonCount >= tabCount) delimiter = ";";
+  else if (tabCount > commaCount && tabCount > semicolonCount) delimiter = "\t";
+
+  return splitCSVRows(clean, delimiter);
+}
+
+function splitCSVRows(text, delimiter) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        cell += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (!inQuotes && ch === delimiter) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if (!inQuotes && ch === "\n") {
+      row.push(cell);
+      if (row.some(item => cleanText(item) !== "")) rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += ch;
+  }
+
+  if (cell.length || row.length) {
+    row.push(cell);
+    if (row.some(item => cleanText(item) !== "")) rows.push(row);
+  }
+
+  return rows;
 }
