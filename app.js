@@ -301,45 +301,95 @@ function buildOver05Results(rows) {
     const u5 = splitPairFlexible(getValue(row, ["U5CO"]));
     const u5ct = splitPairFlexible(getValue(row, ["U5CTCO"]));
 
-    if (isFinite(ind) && isFinite(delta) && isFinite(diff)) {
-      if (delta < -20 && ind < 320 && diff < 0) {
-        premium.push({
-          ora,
-          evento,
-          quality: "Forte",
-          score: (400 - ind) + Math.abs(delta) + (Math.abs(diff) * 10)
-        });
-      }
-    }
-
     let score = 0;
 
-    if (isFinite(ind)) score += ind < 280 ? 2 : ind < 320 ? 1.5 : ind < 360 ? 1 : 0;
-    if (isFinite(delta)) score += delta <= -20 ? 2 : delta <= -10 ? 1.25 : delta < 0 ? 0.5 : 0;
-    if (isFinite(diff)) score += diff < 0 ? 1.5 : diff <= 0.2 ? 0.5 : 0;
-    if (isFinite(mge)) score += mge >= 3.2 ? 1.5 : mge >= 2.8 ? 1 : mge >= 2.4 ? 0.5 : 0;
-    if (isFinite(cov)) score += cov >= 80 ? 1 : cov >= 72 ? 0.6 : 0;
-    if (isFinite(oov)) score += oov >= 80 ? 1 : oov >= 72 ? 0.6 : 0;
-    if (isFinite(qrgg) && isFinite(qro25) && qrgg <= qro25) score += 0.7;
-    if (isFinite(qro05)) score += qro05 <= 1.25 ? 0.8 : qro05 <= 1.35 ? 0.5 : 0;
+    if (isFinite(ind)) {
+      if (ind <= 280) score += 2.4;
+      else if (ind <= 320) score += 2;
+      else if (ind <= 350) score += 1.5;
+      else if (ind <= 390) score += 0.9;
+    }
+
+    if (isFinite(delta)) {
+      if (delta <= -20) score += 2.1;
+      else if (delta <= -10) score += 1.5;
+      else if (delta < 0) score += 0.8;
+      else if (delta <= 5) score += 0.2;
+    }
+
+    if (isFinite(diff)) {
+      if (diff <= -1) score += 1.8;
+      else if (diff < 0) score += 1.3;
+      else if (diff <= 0.2) score += 0.8;
+      else if (diff <= 0.6) score += 0.3;
+    }
+
+    if (isFinite(mge)) {
+      if (mge >= 3.4) score += 2;
+      else if (mge >= 3.0) score += 1.5;
+      else if (mge >= 2.7) score += 1;
+      else if (mge >= 2.4) score += 0.5;
+    }
+
+    if (isFinite(cov)) {
+      if (cov >= 85) score += 1.3;
+      else if (cov >= 78) score += 1;
+      else if (cov >= 72) score += 0.6;
+      else if (cov >= 65) score += 0.2;
+    }
+
+    if (isFinite(oov)) {
+      if (oov >= 85) score += 1.3;
+      else if (oov >= 78) score += 1;
+      else if (oov >= 72) score += 0.6;
+      else if (oov >= 65) score += 0.2;
+    }
+
+    if (isFinite(qro05)) {
+      if (qro05 <= 1.20) score += 1.2;
+      else if (qro05 <= 1.25) score += 0.9;
+      else if (qro05 <= 1.32) score += 0.5;
+      else if (qro05 <= 1.40) score += 0.2;
+    }
+
+    if (isFinite(qrgg) && isFinite(qro25)) {
+      if (qrgg <= qro25) score += 0.6;
+      if (qrgg <= 1.60 && qro25 <= 1.70) score += 0.6;
+    }
 
     const u5sum = sumFinite(u5);
     const u5ctsum = sumFinite(u5ct);
 
-    if (u5sum >= 6) score += 0.6;
-    if (u5sum >= 8) score += 0.4;
+    if (u5sum >= 6) score += 0.7;
+    else if (u5sum >= 4) score += 0.3;
+
     if (u5ctsum >= 4) score += 0.8;
-    if (u5ctsum >= 6) score += 0.6;
+    else if (u5ctsum >= 3) score += 0.4;
+
+    const premiumCheck =
+      isFinite(ind) && isFinite(delta) && isFinite(diff) && isFinite(mge) &&
+      ind <= 330 &&
+      delta <= -8 &&
+      diff <= 0.2 &&
+      mge >= 2.7;
 
     const item = {
       ora,
       evento,
-      quality: score >= 6.6 ? "Forte" : "Media",
+      quality: "Media",
       score
     };
 
-    if (score >= 6.6) listaA.push(item);
-    else if (score >= 5.1) listaB.push(item);
+    if (premiumCheck || score >= 7.1) {
+      item.quality = "Forte";
+      premium.push(item);
+    } else if (score >= 5.6) {
+      item.quality = "Forte";
+      listaA.push(item);
+    } else if (score >= 4.2) {
+      item.quality = "Media";
+      listaB.push(item);
+    }
   });
 
   premium.sort((a, b) => b.score - a.score);
@@ -533,7 +583,7 @@ function canonicalHeader(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/\s+/g, "")
-    .replace(/[^A-Z0-9.\-%\[\]\|]/g, "");
+    .replace(/[^A-Z0-9.\-%\\[\\]\|]/g, "");
 }
 
 function cleanText(value) {
