@@ -33,6 +33,15 @@ const state = {
   gg25: []
 };
 
+const GREEN_MAX_TOTAL = 10;
+const GREEN_SECTION_LIMITS = {
+  combo: 3,
+  ggStrong: 4,
+  o25Strong: 4,
+  ggMedium: 2,
+  o25Medium: 2
+};
+
 const HEADER_SCHEMAS = {
   O05: {
     required: ["ORA", "EVENTO", "IND", "DELTA"],
@@ -145,20 +154,21 @@ async function analyzeGG25() {
 
   try {
     const rows = await readRowsFromFile(selectedGG25, "GG25");
-    const results = buildGG25Results(rows);
+    const rawResults = buildGG25Results(rows);
+    const limited = limitGreenResults(rawResults);
 
-    renderList(boxGGStrong, results.ggStrong, "GG", "gg");
-    renderList(boxGGMedium, results.ggMedium, "GG", "gg");
-    renderList(boxO25Strong, results.o25Strong, "Over 2.5", "o25");
-    renderList(boxO25Medium, results.o25Medium, "Over 2.5", "o25");
-    renderList(boxCombo, results.combo, "Combo", "combo");
+    renderList(boxCombo, limited.combo, "Combo", "combo");
+    renderList(boxGGStrong, limited.ggStrong, "GG", "gg");
+    renderList(boxO25Strong, limited.o25Strong, "Over 2.5", "o25");
+    renderList(boxGGMedium, limited.ggMedium, "GG", "gg");
+    renderList(boxO25Medium, limited.o25Medium, "Over 2.5", "o25");
 
     const merged = [
-      ...results.combo.map(x => ({ ...x, market: "Combo", qualityClass: "strong", rank: 0 })),
-      ...results.ggStrong.map(x => ({ ...x, market: "GG", qualityClass: "strong", rank: 1 })),
-      ...results.ggMedium.map(x => ({ ...x, market: "GG", qualityClass: "medium", rank: 2 })),
-      ...results.o25Strong.map(x => ({ ...x, market: "Over 2.5", qualityClass: "strong", rank: 3 })),
-      ...results.o25Medium.map(x => ({ ...x, market: "Over 2.5", qualityClass: "medium", rank: 4 }))
+      ...limited.combo.map(x => ({ ...x, market: "Combo", qualityClass: "strong", rank: 0 })),
+      ...limited.ggStrong.map(x => ({ ...x, market: "GG", qualityClass: "strong", rank: 1 })),
+      ...limited.o25Strong.map(x => ({ ...x, market: "Over 2.5", qualityClass: "strong", rank: 2 })),
+      ...limited.ggMedium.map(x => ({ ...x, market: "GG", qualityClass: "medium", rank: 3 })),
+      ...limited.o25Medium.map(x => ({ ...x, market: "Over 2.5", qualityClass: "medium", rank: 4 }))
     ].sort((a, b) => a.rank - b.rank || (b.score || 0) - (a.score || 0));
 
     state.gg25 = merged;
@@ -166,7 +176,7 @@ async function analyzeGG25() {
     updateFinal();
 
     statusGG25.textContent =
-      `Analisi completata. Righe lette: ${rows.length} | GG Forte: ${results.ggStrong.length} | GG Medio: ${results.ggMedium.length} | O2.5 Forte: ${results.o25Strong.length} | O2.5 Medio: ${results.o25Medium.length} | Combo: ${results.combo.length}`;
+      `Analisi completata. Righe lette: ${rows.length} | Candidati grezzi: ${limited.rawTotal} | Selezionati: ${limited.total} | Combo: ${limited.combo.length} | GG Forte: ${limited.ggStrong.length} | O2.5 Forte: ${limited.o25Strong.length} | GG Medio: ${limited.ggMedium.length} | O2.5 Medio: ${limited.o25Medium.length}`;
   } catch (error) {
     statusGG25.textContent = `Errore: ${error.message}`;
   } finally {
@@ -589,6 +599,54 @@ function buildGG25Results(rows) {
   return { ggStrong, ggMedium, o25Strong, o25Medium, combo };
 }
 
+function limitGreenResults(results) {
+  const selected = {
+    combo: [],
+    ggStrong: [],
+    ggMedium: [],
+    o25Strong: [],
+    o25Medium: []
+  };
+
+  const rawTotal =
+    results.combo.length +
+    results.ggStrong.length +
+    results.ggMedium.length +
+    results.o25Strong.length +
+    results.o25Medium.length;
+
+  const seen = new Set();
+  let total = 0;
+
+  const priorityOrder = [
+    "combo",
+    "ggStrong",
+    "o25Strong",
+    "ggMedium",
+    "o25Medium"
+  ];
+
+  for (const key of priorityOrder) {
+    for (const item of results[key]) {
+      if (total >= GREEN_MAX_TOTAL) break;
+
+      const eventKey = normalizeKey(item.evento);
+      if (seen.has(eventKey)) continue;
+      if (selected[key].length >= GREEN_SECTION_LIMITS[key]) continue;
+
+      selected[key].push(item);
+      seen.add(eventKey);
+      total++;
+    }
+  }
+
+  return {
+    ...selected,
+    rawTotal,
+    total
+  };
+}
+
 function updateFinal() {
   const merged = [...state.over05, ...state.gg25];
 
@@ -756,6 +814,14 @@ function dedupeWordTail(text) {
     out.push(tokens[i]);
   }
   return out.join(" ");
+}
+
+function normalizeKey(text) {
+  return cleanText(text)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-");
 }
 
 function toNumber(value) {
